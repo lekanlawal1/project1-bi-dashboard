@@ -1,9 +1,9 @@
 # Business Case: Discount Governance Policy
 
-**Audience:** VP Sales / CFO · **Ask:** approve a discount cap policy · **Basis:** 2015–2018 transaction data (10,295 order lines after de-duplication)
+**Audience:** VP Sales / CFO · **Ask:** approve a discount cap policy · **Basis:** 2015–2018 transaction data (9,993 order lines after removing appended non-order rows and de-duplication — see [`cleaning_log.md`](cleaning_log.md))
 
 ## The problem, in one number
-18% of all order lines are sold at a loss. Total profit is $286K on $2.30M of sales (12.5% margin) — but that blended figure hides that **every discount band above 20% is margin-negative in every product category**:
+Nearly 1 in 5 order lines (18.7%) are sold at a loss. Total profit is $286K on $2.30M of sales (12.5% margin) — but that blended figure hides that **every discount band above 20% is margin-negative in every product category**:
 
 | Discount band | Avg. line margin | Sales exposed |
 |---|---|---|

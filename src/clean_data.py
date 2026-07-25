@@ -32,6 +32,21 @@ df.columns = [c.strip().lower().replace(" ", "_").replace("-", "_") for c in df.
 note("Normalized column names to snake_case",
      "Consistent names prevent bugs in downstream SQL/BI tools and match common warehouse conventions.")
 
+# --- 1b. Trailing non-order rows ---------------------------------------------
+# The source file is a CSV export of a multi-sheet workbook (Orders / Returns /
+# People). Two extra mini-tables were appended after the last order row, which
+# the CSV reader ingests as malformed order rows (mostly-NaN, columns shifted).
+# A valid order row always has a numeric Row ID, so that's the discriminator.
+before_rows = len(df)
+df["row_id"] = pd.to_numeric(df["row_id"], errors="coerce")
+df = df.dropna(subset=["row_id"]).reset_index(drop=True)
+df["row_id"] = df["row_id"].astype(int)
+note(f"Dropped {before_rows - len(df)} trailing non-order rows",
+     "The raw export has 'People' and 'Returns' mini-tables appended after the order data (artifacts of a "
+     "multi-sheet Excel source). These parse as rows with a non-numeric Row ID and mostly-NaN fields, and were "
+     "silently inflating downstream counts (e.g. a handful of Region names like 'West' leaking into order_id, "
+     "which previously inflated the distinct-orders KPI). Filtering on numeric Row ID removes them cleanly.")
+
 # --- 2. Types ----------------------------------------------------------------
 for col in ("order_date", "ship_date"):
     df[col] = pd.to_datetime(df[col], format="mixed", dayfirst=False)
@@ -100,6 +115,25 @@ ship = (df[df["ship_lag_days"] >= 0]
         .agg(avg_lag=("ship_lag_days", "mean"), orders=("order_id", "nunique"))
         .round(2).reset_index())
 
+# --- Row-level export for client-side filtering ------------------------------
+# Array-of-arrays (not array-of-objects) so field names aren't repeated 10k+
+# times in the JSON payload — keeps the static bundle small enough to inline.
+row_fields = ["order_id", "customer_id", "order_date", "ship_date", "ship_mode",
+              "region", "segment", "category", "sub_category", "product_name",
+              "sales", "quantity", "discount", "profit"]
+rows_export = df[row_fields].copy()
+rows_export["order_date"] = rows_export["order_date"].dt.strftime("%Y-%m-%d")
+rows_export["ship_date"] = rows_export["ship_date"].dt.strftime("%Y-%m-%d")
+rows_export["sales"] = rows_export["sales"].round(2)
+rows_export["profit"] = rows_export["profit"].round(2)
+rows_export["discount"] = rows_export["discount"].round(2)
+rows_data = rows_export.values.tolist()
+note(f"Exported {len(rows_data):,} row-level records (fields: {', '.join(row_fields)})",
+     "The dashboard filters and searches client-side across every dimension (product, region, "
+     "segment, ship mode, discount, date) — that requires row-level data, not just pre-aggregated "
+     "tables. Array-of-arrays JSON (vs. array-of-objects) avoids repeating field names per row, "
+     "keeping the static payload small enough to inline directly in the HTML.")
+
 kpis = {
     "total_sales": round(float(df["sales"].sum())),
     "total_profit": round(float(df["profit"].sum())),
@@ -114,7 +148,8 @@ kpis = {
 (ROOT / "dashboard/data.json").write_text(json.dumps({
     "kpis": kpis, "monthly": rec(monthly), "cat_sub": rec(cat_sub),
     "discount": rec(disc), "region": rec(region), "ship": rec(ship),
-}))
+    "row_fields": row_fields, "rows": rows_data,
+}, separators=(",", ":")))
 
 (ROOT / "docs/cleaning_log.md").write_text(
     "# Cleaning & Modeling Decision Log\n\n"
