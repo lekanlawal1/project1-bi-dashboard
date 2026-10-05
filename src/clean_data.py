@@ -23,9 +23,10 @@ def note(decision: str, why: str) -> None:
     log.append(f"- **{decision}** — {why}")
 
 
-df = pd.read_csv(ROOT / "data/raw/superstore_raw.csv", encoding="latin-1")
-note(f"Loaded {len(df):,} rows, {df.shape[1]} columns (latin-1 encoding)",
-     "The file contains non-UTF8 characters in product names; latin-1 avoids decode errors without dropping rows.")
+df = pd.read_csv(ROOT / "data/raw/superstore_raw.csv", encoding="utf-8")
+note(f"Loaded {len(df):,} rows, {df.shape[1]} columns (UTF-8 encoding)",
+     "The file is valid UTF-8, including curly quotes and accented letters in product names. Reading it as "
+     "latin-1 (an earlier version of this script) turned each of those into several junk characters.")
 
 # --- 1. Column hygiene -------------------------------------------------------
 df.columns = [c.strip().lower().replace(" ", "_").replace("-", "_") for c in df.columns]
