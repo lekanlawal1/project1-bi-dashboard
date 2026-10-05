@@ -47,8 +47,8 @@ h1{font-family:var(--disp);font-weight:800;font-stretch:85%;font-size:clamp(28px
 .resultcount{font:500 12px var(--mono);color:var(--muted);margin-top:12px}
 .resultcount strong{color:var(--ink)}
 
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px 18px 8px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px 18px 8px;min-width:0}
 .card.full{grid-column:1/-1}
 .card h2{font-family:var(--disp);font-weight:700;font-stretch:85%;font-size:18px;margin-bottom:2px}
 .card p{font-size:13px;color:var(--muted);margin-bottom:6px}
@@ -74,7 +74,10 @@ tr.gain td.profitcell{color:var(--profit)}
 
 footer{margin-top:34px;font-size:13px;color:var(--muted)}
 footer a{color:var(--profit)}
-@media(max-width:820px){.grid{grid-template-columns:1fr}.plot{height:300px}}
+@media(max-width:820px){.grid{grid-template-columns:minmax(0,1fr)}.plot{height:300px}}
+@media(max-width:560px){.wrap{padding:0 16px 48px}header{padding-top:28px}.card{padding:14px 12px 6px}
+  .searchrow{flex-direction:column}.resetbtn{padding:10px 16px}.select{max-width:100%}
+  .fgroup{width:100%}.kpi .v{font-size:20px}.plot{height:280px}#subcat{height:440px}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -171,7 +174,9 @@ footer a{color:var(--profit)}
 const RAW = JSON.parse(document.getElementById('data').textContent);
 const C = {profit:'#0e6b4f', loss:'#c2452d', amber:'#b97c10', ink:'#152420', muted:'#5b6a64', line:'#dde4df'};
 const fontAxis = {family:'IBM Plex Mono, monospace', size:11, color:C.muted};
-const base = {paper_bgcolor:'rgba(0,0,0,0)', plot_bgcolor:'rgba(0,0,0,0)',
+// Plotly writes axis state (such as type) into the layout it is given,
+// so each chart gets its own copy instead of sharing one object.
+const BASE = {paper_bgcolor:'rgba(0,0,0,0)', plot_bgcolor:'rgba(0,0,0,0)',
   font:{family:'IBM Plex Sans, sans-serif', color:C.ink},
   margin:{l:56,r:16,t:8,b:44}, xaxis:{tickfont:fontAxis,gridcolor:C.line},
   yaxis:{tickfont:fontAxis,gridcolor:C.line}, legend:{orientation:'h',y:1.12}};
@@ -290,6 +295,7 @@ function kpis(rows){
 }
 
 function drawDisc(rows){
+  const base = structuredClone(BASE);
   const y = BANDS.map(b=>{
     const g = rows.filter(r=>r.discount_band===b);
     const s = sum(g,r=>r.sales);
@@ -304,6 +310,7 @@ function drawDisc(rows){
 }
 
 function drawSub(rows){
+  const base = structuredClone(BASE);
   const groups = groupBy(rows, r=>r.category+'|||'+r.sub_category);
   const agg = [...groups.entries()].map(([k,g])=>{
     const sub_category = k.split('|||')[1];
@@ -320,6 +327,7 @@ function drawSub(rows){
 }
 
 function drawTrend(rows){
+  const base = structuredClone(BASE);
   const groups = groupBy(rows, r=>r.order_month);
   const months = [...groups.keys()].sort();
   const sales = months.map(m=>sum(groups.get(m),r=>r.sales));
@@ -328,10 +336,11 @@ function drawTrend(rows){
     {x:months,y:sales,name:'Sales',type:'scatter',mode:'lines',line:{color:C.ink,width:1.6}},
     {x:months,y:profit,name:'Profit',type:'scatter',mode:'lines',
      line:{color:C.profit,width:1.6},fill:'tozeroy',fillcolor:'rgba(14,107,79,.08)'}],
-    {...base,xaxis:{...base.xaxis,nticks:8},yaxis:{...base.yaxis,...niceAxis$([...sales,...profit])}},cfg);
+    {...base,xaxis:{...base.xaxis,nticks:6,tickformat:"%b '%y",tickangle:0},yaxis:{...base.yaxis,...niceAxis$([...sales,...profit])}},cfg);
 }
 
 function drawRegion(rows){
+  const base = structuredClone(BASE);
   const regs = REGIONS.filter(g=>state.region==='All'||g===state.region);
   const segs = SEGMENTS.filter(s=>state.segment==='All'||s===state.segment);
   const groups = groupBy(rows, r=>r.region+'|||'+r.segment);
@@ -344,6 +353,7 @@ function drawRegion(rows){
 }
 
 function drawShip(rows){
+  const base = structuredClone(BASE);
   const valid = rows.filter(r=>r.ship_lag_days>=0);
   const groups = groupBy(valid, r=>r.ship_mode);
   const modes = SHIPMODES.filter(m=>groups.has(m));
@@ -353,7 +363,7 @@ function drawShip(rows){
     marker:{color:C.ink},text:avgLag.map(v=>v+' d'),textposition:'outside',cliponaxis:false,
     customdata:orders,
     hovertemplate:'%{x}: %{y} days avg · %{customdata} orders<extra></extra>'}],
-    {...base,yaxis:{...base.yaxis,title:{text:'avg days to ship',font:fontAxis}}},cfg);
+    {...base,xaxis:{...base.xaxis,automargin:true},yaxis:{...base.yaxis,title:{text:'avg days to ship',font:fontAxis}}},cfg);
 }
 
 const TBL_COLS = [
