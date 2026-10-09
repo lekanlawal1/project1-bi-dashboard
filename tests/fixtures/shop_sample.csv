@@ -1,0 +1,5 @@
+Name,Created at,Lineitem name,Product type,Lineitem quantity,Lineitem price,Discount Amount,Cost per item,Billing Province
+#1001,2025-03-05 14:22:10 -0500,Cast iron pan,Cookware,2,84.00,0.00,31.00,ON
+#1002,2025-03-06 09:10:00 -0500,Chef knife,Knives,1,66.75,22.25,38.00,BC
+#1003,2025-04-01 18:45:00 -0500,Cast iron pan,Cookware,1,29.40,12.60,31.00,BC
+,Total,,,,,,,
