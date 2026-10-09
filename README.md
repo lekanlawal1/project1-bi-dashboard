@@ -1,44 +1,77 @@
-# Superstore Margin Console — Retail BI Dashboard
+# Margin Console
 
-**Live demo:** https://lekanlawal1.github.io/project1-bi-dashboard/ · **Stack:** Python (pandas) · Plotly.js · vanilla JS · static HTML
+Drop in a sales export and see where your profit goes: which discounts cost you money, which products
+lose it, and how your margin moves month by month, with the SQL behind every chart. Everything runs in
+your browser; the file is never uploaded.
 
-## Problem statement
-A US retailer's revenue grew every year from 2015–2018 — yet overall margin sat at 12.5% and nearly 1 in 5 order lines lost money. Leadership sees the sales trend; nobody sees *where profit leaks*. This dashboard is a profitability audit: it answers "which products, discounts, and regions are quietly funding growth with losses?"
+**Live:** [lekanlawal1.github.io/project1-bi-dashboard](https://lekanlawal1.github.io/project1-bi-dashboard/)
+(click "Try it with sample data", or drop in your own CSV or Excel file)
 
-## My approach
-1. **Ingest & clean** (`src/clean_data.py`): a scripted, reproducible pipeline where every transformation writes to a decision log (`docs/cleaning_log.md`) — what was done *and why*.
-2. **Model**: derive decision-ready fields — line-level profit margin, shipping lag, and **discount bands** (0% / 1–20% / 21–40% / 41%+) so a continuous variable becomes an actionable pricing lever.
-3. **Export row-level data** (not just aggregates) into the dashboard's HTML, so every chart, KPI, and the product table below recompute **live in the browser** as you search or filter — no backend, free hosting, instant load.
+## Who it's for
 
-## Key decisions and why
-- **Static Plotly.js over Power BI** — a public, link-accessible demo with zero licensing cost; full client-side interactivity (search, cross-filtering, sortable tables) preserved. Power BI public embedding requires a paid workspace.
-- **Dropped 806 trailing non-order rows** — the raw export is a CSV dump of a multi-sheet workbook (Orders / Returns / People); the Returns and People sheets got appended after the last order row and parsed as malformed, mostly-empty order rows. They were silently inflating downstream counts (they're why this project used to report "505 duplicate rows" — most of that was actually these fragments collapsing together, not real duplicates). Filtering on a valid numeric `Row ID` removes them cleanly; the true duplicate count is 1.
-- **Removed 1 exact duplicate row** — identical order lines with different surrogate `row_id`s would double-count revenue. Duplicates were detected by comparing all business columns while ignoring the surrogate key.
-- **Flag, don't drop, suspect rows** — rows failing a logistics validity check keep contributing to revenue KPIs (their dollar amounts are valid) but are excluded from shipping metrics only.
-- **Kept outliers** — a $22.6K order is real revenue, not noise; charts use aggregates robust to skew instead of winsorizing the business away.
-- **Margin, not raw profit, as the comparison unit** — raw profit rewards big categories; margin exposes the discount cliff.
+A small business owner whose sales are growing but whose bank balance isn't. Export your orders from
+Shopify, Square, Clover, QuickBooks or a spreadsheet, drop the file in, confirm which column is which, and
+you get:
 
-## Results — 3 business insights
+- **Headline numbers** with the change against the previous period: sales, profit, margin, orders, and the
+  share of lines sold at a loss.
+- **The discount cliff:** margin at each discount level, so you can see where discounting starts costing more
+  than it brings in.
+- **Profit by category** and a **region by category** heatmap.
+- **Where the profit comes from:** products ranked by profit with the running share of the total. Typically a
+  small share of products makes most of the profit and a tail gives some back.
+- **Products that lose money,** the 25 biggest.
+- **What stands out:** plain-English findings, each a fixed rule over the numbers, not AI text.
+
+Click any bar, heatmap cell, month or product and every chart filters to it. Under each chart, "Show the
+SQL" shows the exact query it ran.
+
+Files with no profit or cost column (most point-of-sale exports) still work: the dashboard shows sales,
+discounts, products and locations instead of margins, and says so.
+
+## How it works
+
+- **DuckDB in the browser** reads the file (Excel goes through SheetJS first). Every chart is one SQL query
+  from `console/core.js`.
+- **Messy files are handled and reported, not silently counted:** rows without a readable date or sales
+  amount (totals, notes, other sheets pasted below the data) are skipped, exact duplicate lines removed, and
+  the data check says how many of each.
+- **Columns are guessed, then confirmed by you.** Common export names are recognised (Shopify's "Lineitem
+  price", "Billing Province"; point-of-sale "Net Sales", "Location"). Dates in day-first or month-first
+  order are told apart from the values themselves. Costs can be per line or per unit, discounts a rate or a
+  dollar amount.
+
+## Tested against an independent calculation
+
+`tests/test_console_sql.py` generates the console's SQL with the same JavaScript the page uses, runs it in
+DuckDB on the **raw** Superstore export, and compares every number with pandas:
+
+- the raw file ends with 806 rows from the workbook's other sheets: all 806 are skipped
+- 1 exact duplicate line is removed, leaving 9,993 lines, the same as the original cleaning pipeline
+- sales, profit, margin, the discount cliff, the Tables loss, the profit ranking and the filters all match
+
+A Shopify-style fixture caught a real bug: DuckDB can guess that `#` starts a comment line, and Shopify
+names every order `#1001`, so a whole export would have vanished. Comments are now switched off.
+
+```bash
+node --test tests/core.test.mjs   # column guessing, dates, money formats, filters, findings
+python -m pytest tests -q         # the SQL, against pandas, on the raw export and a Shopify-style file
+python3 -m http.server 8800       # then open http://localhost:8800
+```
+
+## The original dashboard
+
+The first version of this project was a fixed dashboard of the same Superstore data, built from a scripted
+pandas cleaning pipeline (`src/clean_data.py`, decision log in `docs/cleaning_log.md`). It's still at
+[/dashboard/](https://lekanlawal1.github.io/project1-bi-dashboard/dashboard/). Its findings are below. The
+console shows the same patterns on the sample; its discount bands are finer (20 to 30%, 30 to 50%, over 50%), so
+its percentages differ.
+
+
 1. **The discount cliff:** average margin falls from **+33% (no discount)** to **−15% (21–40%)** to **−90% (41%+)**. No category survives a >20% discount. → *Recommend a 20% discount cap requiring manager approval above it.*
 2. **Tables are a loss engine:** $207K in sales, **−$17.7K profit**, driven by a 26% average discount. Bookcases similar. → *Renegotiate supplier cost or de-emphasize in promotions.*
 3. **Profit concentration:** Copiers, Phones and Accessories generate ~$142K of the $286K total profit on a fraction of volume; Central region underperforms every segment. → *Reallocate marketing spend toward Technology in West/East.*
 
 Full one-page business case: [`docs/business_case.md`](docs/business_case.md)
 
-## Repo structure
-```
-data/raw/            source CSV (public Superstore dataset)
-data/processed/      cleaned output (git-ignored, regenerate locally)
-src/clean_data.py    pipeline (generates data.json + cleaning log)
-dashboard/index.html interactive dashboard (source of truth)
-index.html            mirror of dashboard/index.html served at the repo root for GitHub Pages
-docs/                cleaning_log.md · business_case.md
-```
-
-## Run / deploy
-```bash
-python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
-.venv/bin/python src/clean_data.py             # rebuild data/processed/, dashboard/data.json, docs/cleaning_log.md
-cp dashboard/index.html index.html             # keep the Pages root copy in sync
-```
-Live at **https://lekanlawal1.github.io/project1-bi-dashboard/** — GitHub Pages is configured to serve `main` from `/` (root), which is why the root `index.html` mirror exists; `.nojekyll` disables Jekyll so the file is served as-is instead of being treated as a theme.
+Built by [Lekan Lawal](https://lekanlawal1.github.io/portfolio-site/). The sample is the public Superstore dataset.
