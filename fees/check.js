@@ -244,7 +244,10 @@ const FeeCheck = (() => {
       findings.push({ amount: markupFee + authFee, kind: "markup", title: "What your processor charges on top",
         text: `Your processor adds ${Object.entries(groups).map(([r, b]) => `${r} on ${b.join(", ")}`).join(" and ")} sales${authRates.length ? `, plus $${authRates.map((r) => r.toFixed(2)).join("/")} each time a card is checked` : ""}. That came to ${usd(markupFee + authFee)} this month. This is the part to compare when you get a quote from another processor.` });
     }
-    const fixed = lines.filter((l) => l.cls === "processor" && !disc.includes(l) && !auths.includes(l));
+    const pci = lines.filter((l) => /PCI.*NON|NON.?COMPLIAN/.test(l.description.toUpperCase()));
+    if (pci.length) findings.push({ amount: -sum(pci, "amount"), kind: "fixed", title: "A fee you can usually make go away",
+      text: `${pci.map((l) => `${l.description} ${usd(-l.amount)}`).join(", ")}. Processors charge this when the yearly card-security questionnaire (PCI) hasn't been filed. Filing it, usually free through your processor's website, normally stops the fee: about ${usd0(-sum(pci, "amount") * 12)} a year.` });
+    const fixed = lines.filter((l) => l.cls === "processor" && !disc.includes(l) && !auths.includes(l) && !pci.includes(l));
     if (fixed.length) findings.push({ amount: -sum(fixed, "amount"), kind: "fixed", title: "The processor's other fees",
       text: `${fixed.map((l) => `${l.description.replace(/\s+\d[\d,]*\s*TRANSACTIONS AT.*$/, "")} ${usd(-l.amount)}`).join(", ")}. These are set by the processor, not the card networks, so ask whether any can be dropped.` });
     if (authCount > txns && authRates.length) {
@@ -252,9 +255,6 @@ const FeeCheck = (() => {
       findings.push({ amount: Math.round(extra * authRates[0] * 100), kind: "habit", title: "More card checks than sales",
         text: `You were charged for ${authCount} authorisations but made ${txns} sales and refunds. The other ${extra} are declined cards, retries and card-on-file checks; at $${authRates[0].toFixed(2)} each that's about ${usd(Math.round(extra * authRates[0] * 100))}. A lot of declines and retries can also add card-network penalty fees.` });
     }
-    const pci = lines.filter((l) => /PCI.*NON|NON.?COMPLIAN/.test(l.description.toUpperCase()));
-    if (pci.length) findings.push({ amount: -sum(pci, "amount") * 1.0001, kind: "fixed", title: "A fee you can usually make go away",
-      text: `${pci.map((l) => `${l.description} ${usd(-l.amount)}`).join(", ")}. Processors charge this when the yearly card-security questionnaire (PCI) hasn't been filed. Filing it, usually free through your processor's website, normally stops the fee: about ${usd0(-sum(pci, "amount") * 12)} a year.` });
     const unknown = lines.filter((l) => l.cls === "unknown");
     if (unknown.length) findings.push({ amount: -sum(unknown, "amount"), kind: "unknown", title: "Lines the checker couldn't place",
       text: `${unknown.map((l) => l.description).join(", ")}. They're counted in the total but not sorted into who gets the money.` });
