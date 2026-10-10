@@ -233,3 +233,14 @@ test("general reader: a statement whose fees don't reach its printed total is re
   assert.equal(any.ok, false);
   assert.equal(any.totals.fees.cents, 132792);                 // the quick check still gets the totals
 });
+
+test("general reader: sections closed by \"Subtotal\" lines", () => {
+  const it = (s, x, y) => ({ page: 1, s, x, y, w: s.length * 4 });
+  const g = G.read(S.linesFromItems([it("Total Sales", 10, 760), it("$10,000.00", 300, 760),
+    it("Monthly Fee", 10, 700), it("$9.95", 300, 700), it("Gateway Fee", 10, 690), it("$10.00", 300, 690), it("Subtotal", 10, 680), it("$19.95", 300, 680),
+    it("Visa Assessment", 10, 660), it("$14.00", 300, 660), it("MC Assessment", 10, 650), it("$6.00", 300, 650), it("Subtotal", 10, 640), it("$20.00", 300, 640),
+    it("Total Fees Charged", 10, 620), it("$39.95", 300, 620)]));
+  assert.equal(g.ok, true);
+  assert.equal(g.feeTotal, -3995);
+  assert.equal(g.sectionsUsed.length, 2);
+});
