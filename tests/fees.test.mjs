@@ -184,3 +184,52 @@ test("any other statement: labelled totals are found, with the line they came fr
   assert.deepEqual(st.totals.sales, { cents: 1234567, line: "Total Sales $12,345.67", page: 1 });
   assert.equal(st.totals.fees.cents, 34510);
 });
+
+// ------------------------------------------------------------------ the general reader, on layouts it has no rules for
+const G = require("../fees/generic.js");
+const fixture = (name) => S.linesFromItems(require(`./fixtures/${name}`));
+
+test("general reader: the two known layouts give the same answers as their own readers", () => {
+  for (const [file, own] of [["sample_statement_items.json", read()], ["sample_statement_ca_items.json", readCA()]]) {
+    const g = G.read(fixture(file));
+    assert.equal(g.ok, true, file);
+    const a = K.analyze(g), b = K.analyze(own);
+    assert.equal(a.fees, b.fees, file);
+    assert.equal(a.sales, b.sales, file);
+    assert.deepEqual(a.buckets, b.buckets, file);
+    assert.equal(a.rateSummary.above, b.rateSummary.above, file);
+    assert.equal(a.rateSummary.match, b.rateSummary.match, file);
+  }
+});
+
+test("general reader: a new interchange-plus layout is read and checked", () => {
+  const g = G.read(fixture("statement_other_a_items.json"));
+  assert.equal(g.ok, true);
+  assert.equal(g.feeTotal, -132692);
+  assert.deepEqual(g.sectionsUsed.map((x) => x.label), ["Total Interchange and Program Fees", "Total Card Brand Fees", "Total Processor Fees"]);
+  assert.equal(g.sales, 4985050);
+  const a = K.analyze(g);
+  assert.equal(a.buckets.unknown, 0);
+  assert.deepEqual(a.rateSummary, { match: 6, above: 1, below: 0, differs: 0, unchecked: 0, refund: 0 });
+  assert.equal(a.ic.find((r) => r.verdict === "above").description, "VI-ECOMM BSC P1 SIGN PREFERRED");
+  assert.match(a.lines.find((l) => l.mathOk === false).description, /^AUTHORIZATION FEE$/);
+  assert.ok(a.findings.some((f) => f.title === "A fee you can usually make go away"));
+});
+
+test("general reader: flat-rate statements are read, and said to be flat-rate", () => {
+  const g = G.read(fixture("statement_other_b_items.json"));
+  assert.equal(g.ok, true);
+  assert.equal(g.feeTotal, -37877);
+  assert.equal(g.sales, 1292813);                              // net sales, not gross
+  const a = K.analyze(g);
+  assert.equal(a.findings[0].title, "Fees are only shown by day");
+});
+
+test("general reader: a statement whose fees don't reach its printed total is refused", () => {
+  const g = G.read(fixture("statement_other_c_items.json"));
+  assert.equal(g.ok, false);
+  assert.match(g.reason, /adds up to its printed fee total/);
+  const any = G.parseAny(fixture("statement_other_c_items.json"));
+  assert.equal(any.ok, false);
+  assert.equal(any.totals.fees.cents, 132792);                 // the quick check still gets the totals
+});

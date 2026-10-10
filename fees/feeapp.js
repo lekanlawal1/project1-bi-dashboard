@@ -61,7 +61,7 @@
     try {
       status(`Reading ${name}...`);
       const items = await itemsFrom(buffer);
-      const st = FeeStatement.parse(FeeStatement.linesFromItems(items));
+      const st = FeeGeneric.parseAny(FeeStatement.linesFromItems(items));
       if (!st.ok) return fail(st.reason, st.totals);
       const a = K.analyze(st);
       if (!a.ok) return fail(a.reason);
@@ -124,22 +124,26 @@
     const okChecks = a.checks.filter((c) => c.ok).length;
     const above = a.rateSummary.above, checked = a.rateSummary.match + a.rateSummary.above + a.rateSummary.below + a.rateSummary.differs;
     const who = st.processor ? ` (${esc(st.processor)})` : "";
+    const share = (x) => (a.sales ? pct(x / a.sales) : "n/a");
+    const generic = st.layoutKey === "generic";
 
     // the summary: plain sentences, then the four numbers
     $("fee-summary").innerHTML = `
-      <p class="kicker">${esc(fileLabel)} · ${st.period ? monthName(st.period.from) : "statement"} · ${esc(st.layout)} layout${st.currency === "CAD" ? " · amounts in Canadian dollars" : ""}</p>
-      <p class="headline">You took <b>${usd(a.sales)}</b> in card payments and paid <b>${usd(a.fees)}</b> in fees:
-        <b>${pct(a.effectiveRate)}</b> of every sale, about <b>${usd(Math.round(a.fees / Math.max(1, a.txns)))}</b> per sale.</p>
-      <p>${usd(passThrough)} of that went to the banks that issued your customers' cards and to the card networks. That part is the same at any processor.
-        <b>${usd(b.processor)}</b> (${pct(b.processor / a.sales)} of sales) went to your processor${who}, and that's the part you can negotiate.</p>
+      <p class="kicker">${esc(fileLabel)} · ${st.period ? monthName(st.period.from) : "statement"} · ${generic ? "unfamiliar layout, read by the general reader" : `${esc(st.layout)} layout`}${st.currency === "CAD" ? " · amounts in Canadian dollars" : ""}</p>
+      ${generic ? `<p class="gen">This layout isn't one the checker knows, so its general reader read it: it found ${st.sectionsUsed.length} section${st.sectionsUsed.length > 1 ? "s" : ""} of fees that add up exactly to the statement's own fee total ("${esc(st.feeTotalFrom.line)}", page ${st.feeTotalFrom.page}).
+        ${st.sales != null ? `Card sales came from "${esc(st.salesFrom.line)}" on page ${st.salesFrom.page}; check that figure, as it sets the rate.` : ""}</p>` : ""}
+      <p class="headline">${a.sales ? `You took <b>${usd(a.sales)}</b> in card payments and paid <b>${usd(a.fees)}</b> in fees:
+        <b>${pct(a.effectiveRate)}</b> of every sale${a.txns ? `, about <b>${usd(Math.round(a.fees / Math.max(1, a.txns)))}</b> per sale` : ""}.` : `You paid <b>${usd(a.fees)}</b> in card fees. Card sales weren't found on the statement, so the rate can't be worked out: type them into the quick check below.`}</p>
+      ${passThrough || b.processor ? `<p>${usd(passThrough)} of that went to the banks that issued your customers' cards and to the card networks. That part is the same at any processor.
+        <b>${usd(b.processor)}</b>${a.sales ? ` (${share(b.processor)} of sales)` : ""} went to your processor${who}, and that's the part you can negotiate.</p>` : ""}
       <p class="verdict ${a.allChecksOk && !above ? "good" : "warn"}">${a.allChecksOk ? `The statement adds up to the cent (${okChecks} of ${a.checks.length} checks passed).` : `${a.checks.length - okChecks} of ${a.checks.length} checks found a problem; see "Does it add up?" below.`}
         ${checked ? `${a.rateSummary.match} of ${checked} interchange lines match the published rate${above ? `; <b>${above} ${above > 1 ? "were" : "was"} charged above it</b>` : ""}.` : ""}
         ${a.findings.length ? `<a href="#f-findings">${a.findings.length} thing${a.findings.length > 1 ? "s" : ""} worth asking about</a>.` : ""}</p>
       <div class="kpis fee-kpis">
-        <div class="tile"><div class="l">Card sales</div><div class="v">${usd0(a.sales)}</div><div class="dl">${a.txns.toLocaleString("en-US")} sales and refunds</div></div>
+        <div class="tile"><div class="l">Card sales</div><div class="v">${usd0(a.sales)}</div><div class="dl">${a.txns != null ? `${a.txns.toLocaleString("en-US")} sales and refunds` : "from the statement"}</div></div>
         <div class="tile"><div class="l">Total fees</div><div class="v">${usd0(a.fees)}</div><div class="dl">${usd(a.fees)}</div></div>
         <div class="tile"><div class="l">Effective rate</div><div class="v">${pct(a.effectiveRate)}</div><div class="dl">fees ÷ card sales</div></div>
-        <div class="tile hot"><div class="l">Your processor kept</div><div class="v">${usd0(b.processor)}</div><div class="dl">${pct(b.processor / a.sales)} of sales · negotiable</div></div>
+        <div class="tile hot"><div class="l">Your processor kept</div><div class="v">${usd0(b.processor)}</div><div class="dl">${share(b.processor)} of sales · negotiable</div></div>
       </div>`;
 
     // where the fees went: one bar, three parts
@@ -147,7 +151,7 @@
     card("f-split", "Where the fees went", "Sorted by who gets the money, using the rules shown in the fee list below. The statement's own labels mix these up.",
       `<div class="split" role="img" aria-label="Fees by who gets them">${parts.map((k) => `<i style="flex:${b[k]};background:${COLORS[k]}" data-tip="${encodeURIComponent(`<b>${LABEL[k]}</b><br>${usd(b[k])}, ${pct(b[k] / a.fees, 0)} of fees`)}" tabindex="0"></i>`).join("")}</div>
       <div class="legend">${parts.map((k) => `<div><span class="sw" style="background:${COLORS[k]}"></span><b>${LABEL[k]}</b>
-        <span class="amt">${usd(b[k])}</span><small>${pct(b[k] / a.sales)} of sales · ${k === "processor" ? "negotiable" : k === "unknown" ? "not sorted" : "same at any processor"}</small></div>`).join("")}</div>`);
+        <span class="amt">${usd(b[k])}</span><small>${share(b[k])} of sales · ${k === "processor" ? "negotiable" : k === "unknown" ? "not sorted" : "same at any processor"}</small></div>`).join("")}</div>`);
 
     // findings, biggest first
     card("f-findings", "Worth asking about", a.findings.length ? "Biggest first. Each one is a fixed rule over the statement's numbers, not AI text." : "",
@@ -155,12 +159,13 @@
         : `<p class="empty">Nothing stood out: every line matched its published rate and nothing looked unusual.</p>`);
 
     // the checks
-    card("f-checks", "Does it add up?", `${okChecks} of ${a.checks.length} checks passed. The first two must pass or no results are shown.`,
+    card("f-checks", "Does it add up?", `${okChecks} of ${a.checks.length} checks passed. If the statement's own totals don't add up, no results are shown at all.`,
       `<ul class="checks">${a.checks.map((c) => `<li class="${c.ok ? "ok" : "bad"}"><span class="mark" aria-label="${c.ok ? "passed" : "failed"}">${c.ok ? "✓" : "✗"}</span><div><b>${esc(c.label)}</b><small>${esc(c.detail)}</small></div></li>`).join("")}</ul>`);
 
     // by card brand
     const brands = a.byBrand.filter((x) => x.sales > 0).sort((p, q) => q.rate - p.rate);
-    card("f-brands", "Cost by card brand", "Fees on each brand's sales, as a share of those sales. Amex and premium rewards cards usually cost the most.",
+    if (!brands.length) $("f-brands").innerHTML = "";
+    else card("f-brands", "Cost by card brand", "Fees on each brand's sales, as a share of those sales. Amex and premium rewards cards usually cost the most.",
       Charts.hbars(brands.map((x) => ({ name: x.brand, label: x.brand === "AMEX ACQ" ? "AMEX" : x.brand, value: x.rate,
         tip: `<b>${esc(x.brand)}</b><br>${usd(x.sales)} of sales, ${x.count} sales<br>${usd(x.fees)} in fees, ${pct(x.rate)}` })),
         { fmt: (v) => pct(v), label: "Effective rate by card brand", polarity: false }) +
@@ -173,7 +178,8 @@
     // daily sales
     const pts = st.days.map((d) => ({ label: new Date(d.date + "T00:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" }), y: d.submitted / 100,
       tip: `<b>${new Date(d.date + "T00:00:00Z").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" })}</b><br>${usd(d.submitted)} in card sales` }));
-    card("f-days", "Card sales by day", `${st.days.length} days with card sales. Fees were taken once, at the end of the month.`,
+    if (!pts.length) $("f-days").innerHTML = "";
+    else card("f-days", "Card sales by day", `${st.days.length} days with card sales. Fees were taken once, at the end of the month.`,
       Charts.columns(pts, { fmt: (v) => (Math.abs(v) >= 1000 ? `$${(v / 1000).toFixed(v >= 10000 ? 0 : 1)}k` : `$${Math.round(v)}`), label: "Card sales by day", width: halfWidth(), height: 180, polarity: true }));
 
     wire();

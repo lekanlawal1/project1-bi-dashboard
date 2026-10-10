@@ -354,9 +354,11 @@ const FeeStatement = (() => {
         const t = text(l), v = re.test(t) ? valueOf(l) : null;
         if (v == null) continue;
         if (/total/i.test(re.source)) return { cents: v, line: t, page: l.page };
-        hits.push({ cents: v, line: t, page: l.page });
+        hits.push({ cents: v, line: t, page: l.page, re });
       }
-      return hits.sort((x, y) => y.cents - x.cents)[0] || null;
+      // the first label that matches anything wins; among its lines, the biggest figure
+      const first = hits[0]?.re;
+      return hits.filter((h) => h.re === first).sort((x, y) => y.cents - x.cents).map(({ re, ...h }) => h)[0] || null;
     };
     return { sales: pick(SALES_LABELS), fees: pick(FEE_LABELS) };
   }

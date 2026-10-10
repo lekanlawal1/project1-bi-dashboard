@@ -99,3 +99,4 @@ table.fees-t tbody tr { cursor: default; }
 .q-found ul { margin: 4px 0 0; padding-left: 18px; }
 .q-found li { overflow-wrap: anywhere; }
 @media (max-width: 520px) { table.fees-t td:first-child { min-width: 128px; } table.fees-t { font-size: 12.5px; } }
+.fee-summary .gen { font-size: 13.5px; background: var(--soft); border-radius: 10px; padding: 8px 12px; overflow-wrap: anywhere; }
