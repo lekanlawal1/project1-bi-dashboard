@@ -8,7 +8,7 @@
   const K = FeeCheck, usd = K.usd;
   const usd0 = (c) => `$${Math.round(Math.abs(c) / 100).toLocaleString("en-US")}`;
   const pct = (x, d = 2) => (x == null ? "n/a" : `${(x * 100).toFixed(d)}%`);
-  const rate = (p, f) => `${p.toFixed(2)}% + $${f.toFixed(2)}`;
+  const rate = (p, f) => `${p.toFixed(2)}%${f ? ` + $${f.toFixed(2)}` : ""}`;
   const status = (msg, bad = false) => { $("fee-status").textContent = msg; $("fee-status").classList.toggle("bad", bad); };
   const monthName = (iso) => new Date(iso + "T00:00:00Z").toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
 
@@ -62,7 +62,7 @@
       status(`Reading ${name}...`);
       const items = await itemsFrom(buffer);
       const st = FeeStatement.parse(FeeStatement.linesFromItems(items));
-      if (!st.ok) return fail(st.reason);
+      if (!st.ok) return fail(st.reason, st.totals);
       const a = K.analyze(st);
       if (!a.ok) return fail(a.reason);
       analysis = a; fileLabel = name; lineFilter = "all"; rateFilter = "all";
@@ -77,22 +77,36 @@
       fail(`Couldn't read that PDF: ${err.message}`);
     }
   }
-  function fail(msg) {
+  // an unsupported statement still gets its labelled totals put into the quick check, with the
+  // line each came from, so the person can confirm them instead of trusting a guess
+  function fail(msg, totals) {
     analysis = null;
     $("fee-dash").hidden = true;
-    status(msg, true);
+    $("q-found").hidden = true;
+    if (totals && (totals.sales || totals.fees)) {
+      const put = (id, t) => { if (t) $(id).value = (t.cents / 100).toFixed(2); };
+      put("q-sales", totals.sales); put("q-fees", totals.fees);
+      const row = (what, t) => t ? `<li><b>${what}:</b> ${usd(t.cents)}, from the line "${esc(t.line)}" on page ${t.page}</li>` : `<li><b>${what}:</b> not found; type it in from your statement's summary</li>`;
+      $("q-found").innerHTML = `<p><b>Filled in from your statement.</b> Check these against the PDF before trusting the result:</p><ul>${row("Card sales", totals.sales)}${row("Total fees", totals.fees)}</ul>`;
+      $("q-found").hidden = false;
+      quick();
+      status(`${msg} I've filled in the quick check below from its totals; please check them.`, true);
+      $("quick").scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+    status(msg + " You can still use the quick check below with two numbers from your statement.", true);
   }
   $("fee-file").addEventListener("change", async (e) => { const f = e.target.files[0]; if (f) load(await f.arrayBuffer(), f.name); });
   const drop = $("fee-drop");
   ["dragenter", "dragover"].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add("over"); }));
   ["dragleave", "drop"].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
   drop.addEventListener("drop", async (e) => { const f = e.dataTransfer.files[0]; if (f) load(await f.arrayBuffer(), f.name); });
-  $("fee-sample").addEventListener("click", async () => {
+  document.querySelectorAll("[data-fee-sample]").forEach((b) => b.addEventListener("click", async () => {
     try {
-      status("Loading the sample statement (a made-up shop)...");
-      load(await (await fetch("sample/sample_statement.pdf")).arrayBuffer(), "the sample statement");
+      status(`Loading the ${b.dataset.label} (a made-up business)...`);
+      load(await (await fetch(b.dataset.feeSample)).arrayBuffer(), `the ${b.dataset.label}`);
     } catch (err) { fail(`Couldn't load the sample: ${err.message}`); }
-  });
+  }));
 
   // ------------------------------------------------------------------ drawing
   const card = (id, title, sub, body) => {
@@ -113,7 +127,7 @@
 
     // the summary: plain sentences, then the four numbers
     $("fee-summary").innerHTML = `
-      <p class="kicker">${esc(fileLabel)} · ${st.period ? monthName(st.period.from) : "statement"} · ${esc(st.layout)} layout</p>
+      <p class="kicker">${esc(fileLabel)} · ${st.period ? monthName(st.period.from) : "statement"} · ${esc(st.layout)} layout${st.currency === "CAD" ? " · amounts in Canadian dollars" : ""}</p>
       <p class="headline">You took <b>${usd(a.sales)}</b> in card payments and paid <b>${usd(a.fees)}</b> in fees:
         <b>${pct(a.effectiveRate)}</b> of every sale, about <b>${usd(Math.round(a.fees / Math.max(1, a.txns)))}</b> per sale.</p>
       <p>${usd(passThrough)} of that went to the banks that issued your customers' cards and to the card networks. That part is the same at any processor.
@@ -282,6 +296,7 @@
       const proc = Math.abs(f) - Math.abs(p);
       out += ` Of that, <b>${usd(Math.round(proc * 100))}</b> (${pct(proc / s)} of sales) is your processor's share, the negotiable part.`;
     } else if (p != null) out += " (The interchange figure is bigger than the total fees; check the numbers.)";
+    if (r > 0.08) out += ` <b>That's far higher than usual</b> (most businesses pay roughly 1.5% to 4%), so check the card sales figure: it may be one day's or one card type's sales rather than the month's.`;
     out += ` <span class="fine">Without the line-by-line statement, this can't say whether any single fee is wrong.</span>`;
     $("q-out").innerHTML = out;
   }

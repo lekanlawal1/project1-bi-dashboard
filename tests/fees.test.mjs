@@ -89,7 +89,7 @@ test("other layouts and scans get a clear message", () => {
   assert.equal(scan.ok, false);
   assert.match(scan.reason, /no text/);
   const square = S.parse(S.linesFromItems([{ page: 1, s: "Square monthly statement", x: 10, y: 700, w: 100 }]));
-  assert.match(square.reason, /isn't supported yet \(it looks like Square\)/);
+  assert.match(square.reason, /isn't fully supported yet \(it looks like Square\)/);
 });
 
 test("published rates: spot checks against Visa's April 2026 schedule", () => {
@@ -120,4 +120,67 @@ test("comparing a quote", () => {
   const cheaper = K.whatIf(a, { pct: 0.30, perTxn: 0.05 });
   assert.equal(cheaper.then, Math.round(same.vol * 0.003 + same.count * 5));
   assert.ok(cheaper.saving > 0);
+});
+
+// ------------------------------------------------------------------ the Canadian (TSYS) layout
+const caItems = require("./fixtures/sample_statement_ca_items.json");
+const readCA = () => S.parse(S.linesFromItems(caItems));
+
+test("TSYS: every section is read, wrapped names included", () => {
+  const st = readCA();
+  assert.equal(st.ok, true);
+  assert.equal(st.layoutKey, "tsys");
+  assert.equal(st.currency, "CAD");
+  assert.deepEqual(st.period, { from: "2026-09-01", to: "2026-09-30" });
+  assert.equal(st.batches.length, 17);
+  assert.equal(st.sales, 3956115 - 33000);
+  assert.equal(st.feeTotal, -66057);
+  assert.ok(st.cardRows.some((c) => c.name === "Visa Business"));            // "Visa" above, "Business" below
+  assert.ok(st.rateLines.some((r) => r.description === "VS CA SMALL MERCHANT ELECTRONIC CGP NNSS"));
+  assert.deepEqual(st.ic.map((r) => r.brand), ["VISA", "VISA", "VISA", "VISA", "VISA", "MASTERCARD", "MASTERCARD", "INTERAC"]);
+});
+
+test("TSYS: it adds up, against the statement's own effective-rate table too", () => {
+  const a = K.analyze(readCA());
+  assert.equal(a.ok, true);
+  assert.deepEqual(a.checks.filter((c) => !c.ok).map((c) => c.label), ["Every fee line that shows its own calculation adds up"]);
+  assert.match(a.lines.find((l) => l.mathOk === false).description, /^BATCH FEE$/);
+  assert.ok(a.checks.find((c) => /EMDR/.test(c.label)).ok);
+  assert.equal(a.buckets.unknown, 0);
+  assert.equal(a.buckets.interchange + a.buckets.network + a.buckets.processor, 66057);
+});
+
+test("TSYS: Visa Canada's published rates, and the planted problems", () => {
+  const a = K.analyze(readCA());
+  assert.deepEqual(a.rateSummary, { match: 4, above: 1, below: 0, differs: 0, unchecked: 2, refund: 1 });
+  const above = a.ic.find((r) => r.verdict === "above");
+  assert.equal(above.description, "VS CANADA STANDARD BUSINESS");
+  assert.equal(above.over, 688);                                  // 0.10% of $6,880.00
+  const titles = a.findings.map((f) => f.title);
+  for (const t of ["Charged above the published rate", "A sale paid the most expensive rate", "A fee line doesn't add up",
+    "A fee you can usually make go away", "Amex fees with no Amex sales", "The statement's own effective rate leaves fees out"]) assert.ok(titles.includes(t), t);
+  const who = (re) => a.lines.find((l) => re.test(l.description)).cls;
+  assert.equal(who(/PCI NON-COMPLIANCE ASSESSMENT/), "processor");      // says "assessment", isn't a network's
+  assert.equal(who(/^VS ASSESSMENT$/), "network");
+  assert.equal(who(/^GST\/HST$/), "processor");
+});
+
+test("Visa Canada rates change on 24 October 2026", () => {
+  const before = R.lookup("VISA", "VS CA SMALL MERCHANT ELECTRONIC CGP NNSS", { country: "CA", date: "2026-10-01" });
+  const after = R.lookup("VISA", "VS CA SMALL MERCHANT ELECTRONIC CGP NNSS", { country: "CA", date: "2026-11-01" });
+  assert.equal(before.rates[0].pct, 0.77);
+  assert.equal(after.rates[0].pct, 0.70);
+  assert.equal(R.lookup("VISA", "VS CA SMALL MERCHANT ELECTRONIC INF PLUS", { country: "CA", date: "2026-11-01" }), null);   // not published yet
+});
+
+test("any other statement: labelled totals are found, with the line they came from", () => {
+  const lines = S.linesFromItems([
+    { page: 1, s: "Acme Payments monthly statement", x: 10, y: 700, w: 100 },
+    { page: 1, s: "Total Sales", x: 10, y: 600, w: 40 }, { page: 1, s: "$12,345.67", x: 300, y: 600, w: 40 },
+    { page: 2, s: "Total Fees Charged", x: 10, y: 500, w: 60 }, { page: 2, s: "-$345.10", x: 300, y: 500, w: 40 },
+  ]);
+  const st = S.parse(lines);
+  assert.equal(st.ok, false);
+  assert.deepEqual(st.totals.sales, { cents: 1234567, line: "Total Sales $12,345.67", page: 1 });
+  assert.equal(st.totals.fees.cents, 34510);
 });

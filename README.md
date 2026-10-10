@@ -79,15 +79,28 @@ reads the statement PDF with pdf.js (in the browser) and does four things:
 Statements without a supported layout get a quick check instead: card sales and total fees give the real
 rate.
 
-**Tested on a real statement** (a real business's, read only locally for testing and never
-committed): 12 of 12 checks passed, 75 fee lines and 28 interchange lines read, all 25 checkable interchange
-lines matched the published rates. **The public sample** (`sample/sample_statement.pdf`) is a made-up shop in
-the same layout, built by `tools/sample_statement.mjs` with four problems planted on purpose; `tests/fees.test.mjs`
-checks that each one is found and nothing else is flagged.
+**Tested on two real statements** (real businesses', read only locally for testing and never committed). US
+CardPointe: 12 of 12 checks passed, 75 fee lines and 28 interchange lines read, all 25 checkable interchange lines
+matched the published rates. Canadian TSYS: every deposit, card type and fee section added up, all 33 fee lines
+summed to the $829.32 deducted, and all 5 Visa interchange lines matched Visa Canada's rates. **The public
+samples** (`sample/sample_statement.pdf`, `sample/sample_statement_ca.pdf`) are made-up businesses in the same
+layouts, built by `tools/sample_statement.mjs` and `tools/sample_statement_ca.mjs` with problems planted on purpose;
+`tests/fees.test.mjs` checks that each one is found and nothing else is flagged.
 
-**Limits.** Only the CardPointe layout (printed by Fiserv for many resellers) is read so far; Square, Clover
-and Stripe each need a real statement to build against. Scanned or photographed statements have no text to
-read. Mastercard rates come from a secondary source. It's a check, not financial advice.
+**Two layouts are read in full:** CardPointe (printed by Fiserv for many US resellers) and TSYS in Canada.
+Each has its own add-up checks; for TSYS that includes every deposit, each card type's discount (which TSYS
+charges on refunds as well as sales), and the statement's own "EMDR" effective-rate table, which is matched to
+the cent and then compared with everything actually deducted (on a real statement it left out 29% of the fees).
+Canadian interchange is checked against Visa Canada's own schedules, including the change on 24 October 2026.
+
+**Any other statement** gets the quick check, filled in from its labelled totals ("Total Amount Deducted",
+"Total Fees Charged", "Total Sales"...), with the line each number came from so the person can confirm it. I
+looked for public sample statements to build more layouts from: Chase's and Elavon's guides can't be
+downloaded, Moneris, Clover and Square publish none, and the ones that exist (Australian banks) are annotated
+pictures of statements. A parser built from a picture would be a guess, so new layouts wait for real statements.
+
+**Limits.** Scanned or photographed statements have no text to read. US Mastercard rates come from a secondary
+source, and Canadian Mastercard rates aren't checked yet. It's a check, not financial advice.
 
 ## Tested against an independent calculation
 
