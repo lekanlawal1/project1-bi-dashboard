@@ -1,0 +1,95 @@
+/* Card fees tab and the two tabs. Builds on console/style.css. Who-gets-the-money colours:
+   the two pass-through parts are quiet slates, the negotiable part is the project's amber. */
+:root { --c-bank: #55657f; --c-net: #a3aec2; --ok: #1f7a4d; --bad: #c8102e; --info: #2a6fb0; }
+@media (prefers-color-scheme: dark) {
+  :root { --c-bank: #8e9cb8; --c-net: #4f5a74; --ok: #5fd39a; --bad: #ff7b7b; --info: #7fb2ec; }
+}
+
+/* tabs */
+.tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 20px 0 6px; }
+.tabs [role="tab"] { text-align: left; font: inherit; color: var(--ink); background: var(--card); border: 2.5px solid var(--edge); border-radius: 16px;
+  padding: 12px 16px; box-shadow: 3px 3px 0 var(--edge); cursor: pointer; display: grid; gap: 2px; transition: transform .15s, box-shadow .15s; }
+.tabs [role="tab"] b { font: 800 1.15rem "Bricolage Grotesque", Inter, sans-serif; letter-spacing: -.01em; }
+.tabs [role="tab"] span { font-size: 13px; color: var(--ink-2); }
+.tabs [role="tab"]:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--edge); }
+.tabs [role="tab"][aria-selected="true"] { background: var(--accent); color: var(--accent-ink); }
+.tabs [role="tab"][aria-selected="true"] span { color: var(--accent-ink); }
+.tabs [role="tab"]:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+[role="tabpanel"] > .lead { margin-top: 14px; }
+
+/* summary */
+#fee-dash { margin-top: 18px; }
+.fee-summary { background: var(--card); border: 2.5px solid var(--edge); border-radius: 18px; padding: 16px 20px; box-shadow: 4px 4px 0 var(--edge); margin-bottom: 16px; }
+.fee-summary p { margin: 6px 0; color: var(--ink-2); max-width: 60rem; }
+.fee-summary .kicker { font-size: 12.5px; color: var(--muted); font-weight: 600; margin-top: 0; }
+.fee-summary .headline { font: 700 1.25rem/1.35 "Bricolage Grotesque", Inter, sans-serif; color: var(--ink); }
+.fee-summary b { color: var(--ink); }
+.verdict { font-size: 14px; padding: 8px 12px; border-radius: 10px; }
+.verdict.good { background: color-mix(in oklab, var(--ok) 12%, var(--card)); }
+.verdict.warn { background: var(--warn-bg); }
+.fee-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 14px 0 0; }
+.tile.hot { background: var(--accent); color: var(--accent-ink); }
+.tile.hot .l, .tile.hot .dl { color: var(--accent-ink); }
+.both { background: var(--soft); border: 2px dashed var(--edge); border-radius: 14px; padding: 12px 14px; font-size: 14.5px; margin-bottom: 16px; }
+
+/* where the fees went */
+.split { display: flex; height: 34px; border: 2.5px solid var(--edge); border-radius: 10px; overflow: hidden; }
+.split i { display: block; min-width: 3px; cursor: default; }
+.split i + i { border-left: 2px solid var(--card); }
+.split i:focus { outline: 3px solid var(--ink); outline-offset: -3px; }
+.legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px 18px; margin-top: 12px; }
+.legend > div { display: grid; grid-template-columns: 14px 1fr auto; gap: 0 8px; align-items: baseline; font-size: 14px; }
+.legend small { grid-column: 2 / -1; color: var(--muted); font-size: 12.5px; }
+.legend .amt { font-weight: 700; font-variant-numeric: tabular-nums; }
+.sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; border: 1.5px solid var(--edge); margin-right: 6px; vertical-align: -1px; }
+.legend .sw { margin: 0; }
+
+/* findings */
+.flist { list-style: none; padding: 0; display: grid; gap: 10px; counter-reset: f; }
+.flist li { border: 2px solid var(--line); border-left: 6px solid var(--c-net); border-radius: 12px; padding: 10px 12px; }
+.flist li.k-overcharge, .flist li.k-downgrade { border-left-color: var(--neg); }
+.flist li.k-markup, .flist li.k-fixed { border-left-color: var(--accent); }
+.flist li.k-habit { border-left-color: var(--pos); }
+.flist .ft { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+.flist .ft b { font-size: 15px; }
+.flist .amt { font: 800 1.05rem "Bricolage Grotesque", Inter, sans-serif; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.flist .amt small { font: 500 12px Inter, sans-serif; color: var(--muted); }
+.flist p { font-size: 14px; color: var(--ink-2); margin-top: 3px; }
+
+/* checks */
+.checks { list-style: none; padding: 0; display: grid; gap: 6px; }
+.checks li { display: grid; grid-template-columns: 24px 1fr; gap: 8px; font-size: 13.5px; }
+.checks .mark { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; color: #fff; font-size: 13px; }
+.checks .ok .mark { background: var(--ok); } .checks .bad .mark { background: var(--bad); }
+.checks small { display: block; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.checks .bad b { color: var(--bad); }
+.fine { font-size: 12px; color: var(--muted); margin-top: 8px; }
+.fine a { font-weight: 500; }
+
+/* tables */
+.chipbar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.chipbar .chip { background: var(--card); color: var(--ink); }
+.chipbar .chip.on { background: var(--accent); color: var(--accent-ink); }
+.chipbar .chip span { font-weight: 500; opacity: .75; }
+table.fees-t td { vertical-align: top; }
+table.fees-t td:first-child { min-width: 180px; }
+table.fees-t tbody tr { cursor: default; }
+.sub2 { display: block; font-size: 11.5px; color: var(--muted); font-weight: 500; }
+.badge { display: inline-block; font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; white-space: nowrap; border: 1.5px solid currentColor; }
+.badge.ok { color: var(--ok); } .badge.bad { color: var(--bad); } .badge.info { color: var(--info); } .badge.none { color: var(--muted); }
+#f-lines .tablewrap, #f-rates .tablewrap { max-height: 520px; overflow-y: auto; }
+#f-lines thead th, #f-rates thead th { position: sticky; top: 0; background: var(--card); }
+
+/* what if, and the quick check */
+.wi, .quick-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px 16px; }
+.wi label, .quick-grid label { display: grid; gap: 4px; font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.money-in { display: flex; align-items: center; border: 2px solid var(--edge); border-radius: 10px; background: var(--card); overflow: hidden; }
+.money-in i { font-style: normal; padding: 0 8px; color: var(--muted); font-weight: 700; }
+.money-in input { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--ink); font: 600 15px Inter, sans-serif; padding: 8px 8px 8px 0; font-variant-numeric: tabular-nums; }
+.money-in input:focus { outline: none; } .money-in:focus-within { outline: 3px solid var(--accent); outline-offset: 1px; }
+.wi-out, .quick-out { margin-top: 12px; font-size: 15px; min-height: 1.4em; }
+.quick-out .fine { display: block; }
+#quick { margin-top: 26px; }
+
+@media (max-width: 760px) { .fee-kpis { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 520px) { .tabs { grid-template-columns: 1fr; } .tabs [role="tab"] span { font-size: 12.5px; } .fee-summary .headline { font-size: 1.1rem; } }

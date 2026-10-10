@@ -1,11 +1,19 @@
 # Margin Console
 
-Drop in a sales export and see where your profit goes: which discounts cost you money, which products
-lose it, and how your margin moves month by month, with the SQL behind every chart. Everything runs in
-your browser; the file is never uploaded.
+Two separate money checks for a small business, in one page. Use either one, or both:
+
+- **Profit margins:** drop in a sales export and see where your profit goes: which discounts cost you
+  money, which products lose it, and how your margin moves month by month, with the SQL behind every chart.
+- **Card fees:** drop in your card processor's monthly statement (PDF) and see what you really pay to take
+  cards, whether every fee is billed correctly, and which part you can negotiate.
+
+Everything runs in your browser; no file is ever uploaded.
 
 **Live:** [lekanlawal1.github.io/project1-bi-dashboard](https://lekanlawal1.github.io/project1-bi-dashboard/)
-(click "Try it with sample data", or drop in your own CSV or Excel file)
+(each tab has a sample; the card-fee tab is at [#fees](https://lekanlawal1.github.io/project1-bi-dashboard/#fees))
+
+If both files cover the same month, each tab says what card fees were as a share of that month's sales and
+profit.
 
 ## Who it's for
 
@@ -41,6 +49,44 @@ discounts, products and locations instead of margins, and says so.
   order are told apart from the values themselves. Costs can be per line or per unit, discounts a rate or a
   dollar amount.
 
+## Card fees: the statement checker
+
+A card statement mixes three kinds of fee under labels that don't say who gets the money. The checker
+reads the statement PDF with pdf.js (in the browser) and does four things:
+
+1. **It has to add up.** Daily sales must sum to the statement's total and every fee line must sum to the
+   total fees, to the cent, or nothing is shown. Then ten more checks: sales by card brand, each section's
+   subtotal, the fee summary by type, each interchange line (rate times sales plus the per-sale fee), and
+   every fee line that prints its own calculation ("0.0065 DISC RATE TIMES $47,108.34",
+   "130 TRANSACTIONS AT 0.1") is recalculated.
+2. **Every dollar is sorted** into the bank that issued the card (interchange), the card networks
+   (assessments and network fees), or the processor. The sorting uses written rules on each line's
+   description (`fees/check.js`), because the statements' own labels mix these up: a Visa network fee filed
+   under "Fees", Visa's assessment filed under "Interchange Charges". Lines no rule recognises are marked
+   "not sure", never guessed.
+3. **Interchange is checked against published rates** (`fees/rates.js`): Visa's own April 2026 schedule,
+   the Amex OptBlue pricing guide, and a published summary of Mastercard's rates (Mastercard's schedule isn't
+   openly downloadable, and the page says so). Card names on statements are abbreviated, so when a name could
+   mean more than one card type every possible rate is allowed. A program with no source on file is "not
+   checked".
+4. **Findings, biggest first:** lines billed above the published rate, "non-qualified" downgrades, fee lines
+   whose own arithmetic is wrong, PCI non-compliance fees, what keyed-in sales cost compared with tapping
+   the card, more card checks than sales, and the processor's markup, with a box to compare another
+   processor's quote.
+
+Statements without a supported layout get a quick check instead: card sales and total fees give the real
+rate.
+
+**Tested on a real statement** (a real business's, read only locally for testing and never
+committed): 12 of 12 checks passed, 75 fee lines and 28 interchange lines read, all 25 checkable interchange
+lines matched the published rates. **The public sample** (`sample/sample_statement.pdf`) is a made-up shop in
+the same layout, built by `tools/sample_statement.mjs` with four problems planted on purpose; `tests/fees.test.mjs`
+checks that each one is found and nothing else is flagged.
+
+**Limits.** Only the CardPointe layout (printed by Fiserv for many resellers) is read so far; Square, Clover
+and Stripe each need a real statement to build against. Scanned or photographed statements have no text to
+read. Mastercard rates come from a secondary source. It's a check, not financial advice.
+
 ## Tested against an independent calculation
 
 `tests/test_console_sql.py` generates the console's SQL with the same JavaScript the page uses, runs it in
@@ -55,6 +101,7 @@ names every order `#1001`, so a whole export would have vanished. Comments are n
 
 ```bash
 node --test tests/core.test.mjs   # column guessing, dates, money formats, filters, findings
+node --test tests/fees.test.mjs   # the card-fee checker, on the made-up sample statement
 python -m pytest tests -q         # the SQL, against pandas, on the raw export and a Shopify-style file
 python3 -m http.server 8800       # then open http://localhost:8800
 ```

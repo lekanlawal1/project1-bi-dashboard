@@ -110,7 +110,8 @@ const MarginCore = (() => {
   const q = (name) => `"${String(name).replace(/"/g, '""')}"`;
   const num = (col) => `TRY_CAST(CASE WHEN trim(${col}) LIKE '(%)' THEN '-' || regexp_replace(trim(${col}), '[()$€£,%\\s]', '', 'g')
       ELSE regexp_replace(trim(${col}), '[$€£,%\\s]', '', 'g') END AS DOUBLE)`;
-  const txt = (col) => (col ? `NULLIF(trim(${q(col)}), '')` : "NULL");
+  // a missing column is a typed NULL: a bare NULL is an INTEGER in DuckDB and breaks coalesce() with text
+  const txt = (col) => (col ? `NULLIF(trim(${q(col)}), '')` : "CAST(NULL AS VARCHAR)");
 
   /**
    * SQL that turns the uploaded table `raw` (all text) into `sales`, one row per line:
@@ -205,7 +206,9 @@ SELECT * FROM read_csv(${lit(file)}, all_varchar = true, header = true, null_pad
       prev = where(p);
     }
     const body = (w) => `SELECT sum(sales) AS sales, sum(profit) AS profit, sum(profit) / nullif(sum(sales), 0) AS margin,
-    count(DISTINCT coalesce(order_id, CAST(order_date AS VARCHAR) || customer)) AS orders,
+    -- no order number and no customer: each line counts as an order
+    CASE WHEN count(order_id) + count(customer) = 0 THEN count(*)
+      ELSE count(DISTINCT coalesce(order_id, CAST(order_date AS VARCHAR) || customer)) END AS orders,
     avg(CASE WHEN profit < 0 THEN 1.0 ELSE 0 END) AS loss_share
   FROM sales ${w}`;
     return prev ? `WITH cur AS (${body(cur)}),\n  prev AS (${body(prev)})\nSELECT cur.*, prev.sales AS prev_sales, prev.profit AS prev_profit, prev.margin AS prev_margin, prev.orders AS prev_orders FROM cur, prev`

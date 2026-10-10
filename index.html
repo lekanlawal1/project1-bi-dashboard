@@ -4,12 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Margin Console | Lekan Lawal</title>
-<meta name="description" content="Drop in your sales data and see where your profit goes: the discount cliff, products that lose money, and the SQL behind every chart. Runs in your browser; nothing is uploaded.">
+<meta name="description" content="Two checks for a small business, in your browser: drop in a sales export to see where your profit goes, or a card processing statement to see what you really pay to take cards and which part you can negotiate. Nothing is uploaded.">
 <link rel="icon" href="https://lekanlawal1.github.io/portfolio-site/assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="console/style.css">
+<link rel="stylesheet" href="fees/fees.css">
 <script src="https://lekanlawal1.github.io/portfolio-site/portfolio-bar.js" data-project="store" defer></script>
 </head>
 <body>
@@ -21,11 +22,21 @@
 
 <main class="wrap">
   <header class="hero">
-    <span class="eyebrow">Sales analytics in your browser · SQL you can see</span>
-    <h1>Where does your <span class="hl">profit</span> go?</h1>
+    <span class="eyebrow">Margin Console · two money checks for a small business · runs in your browser</span>
+    <h1>Where does your <span class="hl">money</span> go?</h1>
+    <p class="lead">Two separate checks. Use one, or both. Your files never leave your computer.</p>
+    <div class="tabs" role="tablist" aria-label="Choose a check">
+      <button type="button" role="tab" id="tab-margin" aria-controls="pane-margin" aria-selected="true">
+        <b>Profit margins</b><span>From a sales export: discounts, losing products, margin by month</span></button>
+      <button type="button" role="tab" id="tab-fees" aria-controls="pane-fees" aria-selected="false" tabindex="-1">
+        <b>Card fees</b><span>From a card processing statement: what you pay, and what's negotiable</span></button>
+    </div>
+  </header>
+
+  <!-- ============================================================ tab 1: margins -->
+  <section id="pane-margin" role="tabpanel" aria-labelledby="tab-margin">
     <p class="lead">Drop in a sales export from Shopify, Square, QuickBooks or a spreadsheet. In seconds you'll see which
-      discounts cost you money, which products lose it, and where your margin is going, with the SQL behind every chart.
-      Your file never leaves your computer.</p>
+      discounts cost you money, which products lose it, and where your margin is going, with the SQL behind every chart.</p>
     <div class="start">
       <button type="button" class="btn primary" id="sample">Try it with sample data</button>
       <label class="drop" id="drop">
@@ -34,68 +45,127 @@
       </label>
     </div>
     <p class="status" id="status" role="status"></p>
-  </header>
 
-  <!-- step 2: confirm the columns -->
-  <section class="panel" id="mapping" hidden>
-    <h2>Which column is which?</h2>
-    <p class="sub">From <b id="map-file"></b>. These are my best guesses: check them, change any that are wrong, then build
-      your dashboard. Only the order date and sales are required.</p>
-    <div class="map-grid" id="map-rows"></div>
-    <div class="map-opts">
-      <label>Date format <select id="date-format"></select></label>
-      <span id="opt-discount" hidden>The discount column is
-        <label><input type="radio" name="dk" value="rate" checked> a percentage or rate</label>
-        <label><input type="radio" name="dk" value="amount"> a dollar amount</label></span>
-      <span id="opt-cost" hidden>The cost column is
-        <label><input type="radio" name="ck" value="total" checked> the total for the line</label>
-        <label><input type="radio" name="ck" value="unit"> per unit (times quantity)</label></span>
-    </div>
-    <p class="warn" id="map-warn"></p>
-    <button type="button" class="btn primary" id="build">Build my dashboard</button>
-  </section>
-
-  <!-- step 3: the dashboard -->
-  <section id="dash" hidden>
-    <div class="check" id="check"></div>
-    <div class="filters">
-      <div class="range">
-        <label>From <select id="from"></select></label>
-        <label>to <select id="to"></select></label>
-        <span class="presets"><button type="button" data-preset="0">All</button><button type="button" data-preset="12">Last 12 months</button><button type="button" data-preset="3">Last 3 months</button></span>
+    <!-- step 2: confirm the columns -->
+    <section class="panel" id="mapping" hidden>
+      <h2>Which column is which?</h2>
+      <p class="sub">From <b id="map-file"></b>. These are my best guesses: check them, change any that are wrong, then build
+        your dashboard. Only the order date and sales are required.</p>
+      <div class="map-grid" id="map-rows"></div>
+      <div class="map-opts">
+        <label>Date format <select id="date-format"></select></label>
+        <span id="opt-discount" hidden>The discount column is
+          <label><input type="radio" name="dk" value="rate" checked> a percentage or rate</label>
+          <label><input type="radio" name="dk" value="amount"> a dollar amount</label></span>
+        <span id="opt-cost" hidden>The cost column is
+          <label><input type="radio" name="ck" value="total" checked> the total for the line</label>
+          <label><input type="radio" name="ck" value="unit"> per unit (times quantity)</label></span>
       </div>
-      <div class="chips" id="chips"></div>
-    </div>
-    <div class="kpis" id="kpis"></div>
-    <div class="findings" id="findings"></div>
-    <div class="grid">
-      <article class="card wide" id="c-monthly"></article>
-      <article class="card" id="c-discount"></article>
-      <article class="card" id="c-category"></article>
-      <article class="card wide" id="c-heatmap"></article>
-      <article class="card wide" id="c-pareto"></article>
-      <article class="card wide" id="c-losers"></article>
-    </div>
+      <p class="warn" id="map-warn"></p>
+      <button type="button" class="btn primary" id="build">Build my dashboard</button>
+    </section>
+
+    <!-- step 3: the dashboard -->
+    <section id="dash" hidden>
+      <div class="check" id="check"></div>
+      <div class="both" id="both-margin" hidden></div>
+      <div class="filters">
+        <div class="range">
+          <label>From <select id="from"></select></label>
+          <label>to <select id="to"></select></label>
+          <span class="presets"><button type="button" data-preset="0">All</button><button type="button" data-preset="12">Last 12 months</button><button type="button" data-preset="3">Last 3 months</button></span>
+        </div>
+        <div class="chips" id="chips"></div>
+      </div>
+      <div class="kpis" id="kpis"></div>
+      <div class="findings" id="findings"></div>
+      <div class="grid">
+        <article class="card wide" id="c-monthly"></article>
+        <article class="card" id="c-discount"></article>
+        <article class="card" id="c-category"></article>
+        <article class="card wide" id="c-heatmap"></article>
+        <article class="card wide" id="c-pareto"></article>
+        <article class="card wide" id="c-losers"></article>
+      </div>
+    </section>
+
+    <section class="how">
+      <h2>How it works</h2>
+      <div class="steps">
+        <div><i>1</i><b>Your file stays put</b><span>It's read by DuckDB, a database that runs inside your browser. Nothing is uploaded.</span></div>
+        <div><i>2</i><b>Messy data is handled</b><span>Totals rows, notes, other sheets and duplicate lines are found and reported, not silently counted.</span></div>
+        <div><i>3</i><b>Every chart is a SQL query</b><span>Open "Show the SQL" under any chart to see exactly how its numbers were worked out.</span></div>
+        <div><i>4</i><b>Click to dig in</b><span>Click any bar, cell or product and every chart filters to it.</span></div>
+      </div>
+      <p class="note">The sample is the public Superstore dataset in its raw form, including 806 junk rows from other
+        sheets of the workbook, so you can see the data check work. The <a href="dashboard/">original fixed dashboard</a>
+        is still available.</p>
+    </section>
   </section>
 
-  <section class="how">
-    <h2>How it works</h2>
-    <div class="steps">
-      <div><i>1</i><b>Your file stays put</b><span>It's read by DuckDB, a database that runs inside your browser. Nothing is uploaded.</span></div>
-      <div><i>2</i><b>Messy data is handled</b><span>Totals rows, notes, other sheets and duplicate lines are found and reported, not silently counted.</span></div>
-      <div><i>3</i><b>Every chart is a SQL query</b><span>Open "Show the SQL" under any chart to see exactly how its numbers were worked out.</span></div>
-      <div><i>4</i><b>Click to dig in</b><span>Click any bar, cell or product and every chart filters to it.</span></div>
+  <!-- ============================================================ tab 2: card fees -->
+  <section id="pane-fees" role="tabpanel" aria-labelledby="tab-fees" hidden>
+    <p class="lead">Drop in the monthly statement from your card processor (the PDF you download from their website).
+      Every fee is checked: the statement has to add up to the cent, each interchange line is compared with the card
+      networks' published rates, and every dollar is sorted into who got it. Only the processor's share is negotiable.</p>
+    <div class="start">
+      <button type="button" class="btn primary" id="fee-sample">Try it with a sample statement</button>
+      <label class="drop" id="fee-drop">
+        <input type="file" id="fee-file" accept=".pdf,application/pdf">
+        <b>Or drop your statement here</b><span>PDF from your processor. CardPointe (Fiserv) statements for now; others get a quick check.</span>
+      </label>
     </div>
-    <p class="note">The sample is the public Superstore dataset in its raw form, including 806 junk rows from other
-      sheets of the workbook, so you can see the data check work. The <a href="dashboard/">original fixed dashboard</a>
-      is still available.</p>
+    <p class="status" id="fee-status" role="status"></p>
+
+    <section id="fee-dash" hidden>
+      <div class="fee-summary" id="fee-summary"></div>
+      <div class="both" id="both-fees" hidden></div>
+      <div class="grid">
+        <article class="card wide" id="f-split"></article>
+        <article class="card wide" id="f-findings"></article>
+        <article class="card" id="f-checks"></article>
+        <article class="card" id="f-brands"></article>
+        <article class="card wide" id="f-rates"></article>
+        <article class="card wide" id="f-lines"></article>
+        <article class="card" id="f-whatif"></article>
+        <article class="card" id="f-days"></article>
+      </div>
+    </section>
+
+    <section class="panel" id="quick">
+      <h2>Quick check, for any statement</h2>
+      <p class="sub">If your statement isn't supported yet, two numbers from its summary still tell you your real rate.</p>
+      <div class="quick-grid">
+        <label>Card sales this month <span class="money-in"><i>$</i><input id="q-sales" inputmode="decimal" placeholder="e.g. 48,250.00"></span></label>
+        <label>Total fees this month <span class="money-in"><i>$</i><input id="q-fees" inputmode="decimal" placeholder="e.g. 1,390.75"></span></label>
+        <label>Interchange and card-network fees, if listed <span class="money-in"><i>$</i><input id="q-pass" inputmode="decimal" placeholder="optional"></span></label>
+      </div>
+      <p class="quick-out" id="q-out" aria-live="polite"></p>
+    </section>
+
+    <section class="how">
+      <h2>How it works</h2>
+      <div class="steps">
+        <div><i>1</i><b>Your statement stays put</b><span>The PDF is read by pdf.js inside your browser. Nothing is uploaded or stored.</span></div>
+        <div><i>2</i><b>It has to add up</b><span>Daily sales and every fee line must match the statement's own totals to the cent, or no results are shown.</span></div>
+        <div><i>3</i><b>Checked against published rates</b><span>Each interchange line is compared with Visa's, Mastercard's and Amex's published rates for that program.</span></div>
+        <div><i>4</i><b>Who got each dollar</b><span>Every fee is sorted, by written rules you can read, into card-issuing bank, card network or your processor.</span></div>
+      </div>
+      <p class="note">The sample is a made-up shop's statement in the same layout as a real one, with a few problems planted
+        on purpose. Rates are from Visa's April 2026 schedule, the Amex OptBlue pricing guide (Fall 2025) and a published summary of
+        Mastercard's rates; each line says which. This is a check, not financial advice.</p>
+    </section>
   </section>
 </main>
 <div class="tip" id="tip" role="tooltip" hidden></div>
-<footer class="wrap foot">Built by <a href="https://lekanlawal1.github.io/portfolio-site/">Lekan Lawal</a>. Runs on DuckDB-WASM; Excel files are read with SheetJS.</footer>
+<footer class="wrap foot">Built by <a href="https://lekanlawal1.github.io/portfolio-site/">Lekan Lawal</a>. Runs on DuckDB-WASM and pdf.js; Excel files are read with SheetJS.</footer>
 <script src="vendor/xlsx.mini.min.js"></script>
 <script src="console/core.js"></script>
 <script src="console/charts.js"></script>
 <script src="console/app.js"></script>
+<script src="fees/statement.js"></script>
+<script src="fees/rates.js"></script>
+<script src="fees/check.js"></script>
+<script src="fees/feeapp.js"></script>
 </body>
 </html>
