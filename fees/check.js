@@ -21,14 +21,17 @@ const FeeCheck = (() => {
   // ---------------------------------------------------------------- who gets each fee
   // Checked top to bottom; the first match wins. Each rule says why, and the page shows it.
   const RULES = [
+    ["processor", /PCI|NON.?COMPLIAN|\bSAQ\b|SCAN INCOMPLETE/, "A penalty the processor charges when the yearly card-security questionnaire (PCI) isn't filed. Not a card-network fee, and usually avoidable."],
     ["network", /LICENSE VOLUME|ACQUIRER LICENSE/, "Mastercard's acquirer licence fee: a tiny percentage of your Mastercard sales. Same for every processor."],
-    ["processor", /SALES DISC|DISC RATE/, "The processor's own percentage on your sales. This is their markup, and it's negotiable."],
+    ["processor", /SALES DISC|DISC RATE|\bDISCOUNT\b/, "The processor's own percentage on your sales. This is their markup, and it's negotiable."],
+    ["interchange", /INTERCHANGE/, "Interchange: the fee that goes to the bank that issued your customer's card. Same for every processor."],
     ["network", /ASSESS/, "A card network's assessment: a small percentage Visa, Mastercard, Discover or Amex charge on every sale. Same for every processor."],
     ["network", /NETWORK|NTWK/, "A card network's fee for using its network. Same for every processor."],
     ["processor", /AVS\s*950|CALL AUTHORI/, "The processor's charge for checking the card's address. Not a card-network fee."],
-    ["processor", /PLATFORM|REGULATORY|BATCH|STATEMENT FEE|PCI|ANNUAL FEE|MINIMUM|MONTHLY SERVICE|GATEWAY|CHARGEBACK|RETRIEVAL|ACCOUNT FEE|SUPPORT|COMPLIANCE|SERVICE FEE$|MEMBERSHIP/,
+    ["processor", /\bGST\b|\bHST\b|\bQST\b|SALES TAX/, "Sales tax on the processor's fees. It goes down when their fees do."],
+    ["processor", /PLATFORM|REGULATORY|BATCH|STATEMENT FEE|ANNUAL FEE|MINIMUM|MONTHLY SERVICE|GATEWAY|CHARGEBACK|RETRIEVAL|ACCOUNT FEE|SUPPORT|SERVICE FEE$|MEMBERSHIP|WARRANTY|EQUIPMENT|RENTAL|LEASE|TAX RECOVERY|DEBIT TRANSACTION FEE|DEBIT CLEARING/,
       "A fee the processor sets itself, not a card network. Ask whether it can be lowered or dropped."],
-    ["network", /INTEGRITY|NEVER APPROVE|ZERO ACCT|DECLINE REASON|BASE II|CONNECTIVITY|DIGITAL ENABLEMENT|DIGTL COM|DIGITAL INVESTMENT|DATA USAGE|LICENSE VOLUME|COMMERCIAL SOLUTIONS|CR VCHER|LOCATION FEE|ACQUIRER|AVS FEE|ADDRS VERIFICATION|FANF|KILOBYTE/,
+    ["network", /INTEGRITY|NEVER APPROVE|ZERO ACCT|DECLINE REASON|BASE II|CONNECTIVITY|DIGITAL ENABLEMENT|DIGTL COM|DIGITAL INVESTMENT|DATA USAGE|COMMERCIAL SOLUTIONS|CR VCHER|LOCATION FEE|ACQUIRER|AVS FEE|ADDRS VERIFICATION|FANF|KILOBYTE|TRANSMISSION|TRANSMFEE|^MC SERVICE$|CYBER SECURE|DIRECT LICENSE/,
       "A small card-network fee for authorisations, data or card checks. Same for every processor."],
     ["processor", /AUTH(ORI[SZ]ATION)? FEE/, "The processor's charge for each authorisation (each time a card is checked). Negotiable."],
   ];
@@ -43,7 +46,8 @@ const FeeCheck = (() => {
     return { cls: "unknown", why: "No rule matches this description, so it isn't guessed." };
   }
 
-  const brandOf = (d) => /^VISA|^VI\b|^VI[-\s]/.test(d) ? "VISA" : /^MASTERCARD|^MC\b|^MC[-\s]/.test(d) ? "MASTERCARD" : /DISCOVER|DSCVR/.test(d) ? "DISCOVER" : /AMEX|AXP/.test(d) ? "AMEX" : null;
+  const brandOf = (d) => /^VISA|^VI\b|^VI[-\s]|^VS\b/.test(d) ? "VISA" : /^MASTERCARD|^MC\b|^MC[-\s]/.test(d) ? "MASTERCARD" : /DISCOVER|DSCVR/.test(d) ? "DISCOVER"
+    : /AMEX|AXP/.test(d) ? "AMEX" : /INTERAC|^DEBIT\b/.test(d) ? "INTERAC" : null;
   const cardBrand = (b) => (/AMEX|AMERICAN/.test(b) ? "AMEX" : b);
 
   // ---------------------------------------------------------------- arithmetic printed inside a fee line
@@ -60,13 +64,9 @@ const FeeCheck = (() => {
   }
   const near = (a, b) => Math.abs(a - b) <= 1;      // within a cent: processors round or truncate
 
-  function analyze(st) {
-    const checks = [];
-    const add = (label, ok, detail, critical = false) => checks.push({ label, ok, detail, critical });
-
-    // ------------------------------------------------ does it add up?
-    const sales = st.dayTotal.submitted;
-    const feeTotal = st.feeByType.rows.Total?.Total ?? st.dayTotal.fees;
+  // ---------------------------------------------------------------- CardPointe: its own totals
+  function reconcileCardPointe(st, add) {
+    const sales = st.sales, feeTotal = st.feeTotal;
     const lineSum = sum(st.feeLines, "amount");
     const daySum = sum(st.days, "submitted");
     add("Daily sales add up to the statement's total", daySum === sales, `${st.days.length} days sum to ${usd(daySum)}; the statement says ${usd(sales)}.`, true);
@@ -111,6 +111,50 @@ const FeeCheck = (() => {
       add("Each interchange line is billed once, for the same amount", !missing.length, missing.length ? `Not found in the fee list: ${missing.map((r) => r.description).join(", ")}.` : `${st.ic.filter((r) => r.total).length} lines found in the fee list.`);
     }
 
+  }
+
+  // ---------------------------------------------------------------- TSYS (Canada): its own totals
+  function reconcileTsys(st, add) {
+    const dt = st.depositTotal, s = st.summary;
+    const bs = (k) => sum(st.batches, k);
+    add("Deposits add up to the statement's totals", !!dt && bs("sales") === dt.sales && bs("credits") === dt.credits && bs("net") === dt.net,
+      dt ? `${st.batches.length} deposits: sales ${usd(bs("sales"))}, refunds ${usd(bs("credits"))}, net ${usd(bs("net"))}; the totals row says ${usd(dt.sales)}, ${usd(dt.credits)}, ${usd(dt.net)}.` : "No totals row found.", true);
+    const sec = (cat) => -sum(st.feeLines.filter((l) => l.category === cat), "amount");
+    const parts = s.discount + s.rates + s.other;
+    const lineSum = -sum(st.feeLines, "amount");
+    add("Every fee line adds up to the total deducted", lineSum === s.deducted && parts === s.deducted && sec("Card type summary") === s.discount && sec("Rates & fees") === s.rates && sec("Other charges") === s.other,
+      `${st.feeLines.length} fee lines sum to ${usd(lineSum)}. Discount ${usd(sec("Card type summary"))}, rates and fees ${usd(sec("Rates & fees"))} and other charges ${usd(sec("Other charges"))} against the statement's ${usd(s.discount)}, ${usd(s.rates)} and ${usd(s.other)}; total deducted ${usd(s.deducted)}.`, true);
+    const ct = st.cardTotal, rows = st.cardRows;
+    if (ct) {
+      const ok = sum(rows, "gross") === ct.gross && sum(rows, "refunds") === ct.refunds && sum(rows, "net") === ct.net && sum(rows, "discount") === ct.discount && (!dt || ct.net === dt.net);
+      add("Card types add up to the totals and the deposits", ok, `${rows.length} card types: net sales ${usd(sum(rows, "net"))}, discount ${usd(sum(rows, "discount"))}; totals row ${usd(ct.net)} and ${usd(ct.discount)}${dt ? `; deposits ${usd(dt.net)}` : ""}.`);
+    }
+    const discBad = rows.filter((c) => c.discount || c.discPct).filter((c) => {
+      const base = c.gross + Math.abs(c.refunds), exp = Math.round(base * (c.discPct ?? 0) / 100);
+      return Math.abs(exp - c.discount) > Math.max(1, c.grossItems + c.refundItems);
+    });
+    add("Each card type's discount is its rate times its sales and refunds", !discBad.length,
+      discBad.length ? discBad.map((c) => `${c.name}: ${usd(c.discount)}`).join("; ") : "Within a cent per sale (deposits are rounded one by one). Note that the discount is charged on refunds as well as sales.");
+    const vsa = st.rateLines.find((r) => /^VS ASSESSMENT$/.test(r.description));
+    const visaGross = sum(rows.filter((c) => c.brand === "VISA"), "gross");
+    if (vsa) add("Visa's assessment was charged on your Visa sales", vsa.base === visaGross, `Charged on ${usd(vsa.base)}; Visa sales were ${usd(visaGross)}.`);
+    const ev = st.emdr.find((e) => e.brand === "VISA" && e.volume);
+    if (ev) {
+      const visaRates = sum(st.rateLines.filter((r) => /^VS\b/.test(r.description)), (r) => -r.amount);
+      const visaDisc = sum(rows.filter((c) => c.brand === "VISA"), "discount");
+      add("The statement's own Visa effective rate (EMDR) matches its lines", visaRates + visaDisc === ev.fees,
+        `Discount ${usd(visaDisc)} plus Visa interchange and assessment ${usd(visaRates)} is ${usd(visaRates + visaDisc)}; the EMDR table says ${usd(ev.fees)}.`);
+    }
+  }
+
+  function analyze(st) {
+    const checks = [];
+    const add = (label, ok, detail, critical = false) => checks.push({ label, ok, detail, critical });
+
+    // ------------------------------------------------ does it add up? (each layout has its own totals)
+    const sales = st.sales, feeTotal = st.feeTotal;
+    (st.layoutKey === "tsys" ? reconcileTsys : reconcileCardPointe)(st, add);
+
     const critical = checks.filter((c) => c.critical && !c.ok);
     if (critical.length) return { ok: false, checks, reason: "The statement didn't add up when it was read, so no results are shown. " + critical.map((c) => c.detail).join(" ") };
 
@@ -118,12 +162,12 @@ const FeeCheck = (() => {
     const icNames = new Set(st.ic.map((r) => r.description.toUpperCase()));
     const lines = st.feeLines.map((l) => {
       const d = l.description.toUpperCase();
-      const math = lineMath(d);
+      const math = l.calc || lineMath(d);
       let mathOk = null, mathExpected = null;
-      if (math) { mathExpected = Math.round(math.rate * math.base * 100); mathOk = near(Math.abs(l.amount), mathExpected); }
+      if (math) { mathExpected = Math.round(math.rate * math.base * 100); mathOk = Math.abs(Math.abs(l.amount) - mathExpected) <= (math.tolerance || 1); }
       const prodBrand = brandOf(String(l.product || "").toUpperCase());
       const icRow = st.ic.find((r) => r.description.toUpperCase() === d);
-      const brand = icRow ? cardBrand(icRow.brand) : prodBrand || brandOf(d);
+      const brand = l.brand || (icRow ? cardBrand(icRow.brand) : prodBrand || brandOf(d));
       return { ...l, ...classify(l, icNames), brand, math, mathOk, mathExpected };
     });
     const bucket = (k) => 0 - sum(lines.filter((l) => l.cls === k), "amount");
@@ -137,7 +181,7 @@ const FeeCheck = (() => {
 
     // ------------------------------------------------ interchange against the published rates
     const ic = st.ic.map((r) => {
-      const ref = R.lookup(r.brand, r.description);
+      const ref = R.lookup(r.brand, r.description, { country: r.country || "US", date: st.period?.from });
       const out = { ...r, ref, verdict: "unchecked", note: "" };
       if (r.sales <= 0 && r.total === 0) { out.verdict = "refund"; out.note = "A refund: no interchange charged."; return out; }
       if (!ref) { out.note = "No published rate on file for this program."; return out; }
@@ -154,8 +198,8 @@ const FeeCheck = (() => {
         const costs = ref.rates.map(cost);
         const lo = Math.min(...costs), hi = Math.max(...costs), paid = -r.total;
         out.expectedLow = lo; out.expectedHigh = hi;
-        if (paid > hi + 1) { out.verdict = "above"; out.over = paid - hi; out.note = `Published: ${ref.rates.map((x) => `${x.pct.toFixed(2)}% + $${x.fix.toFixed(2)}`).filter((v, i, a) => a.indexOf(v) === i).join(" or ")}. Charged ${usd(out.over)} more than that.`; }
-        else if (paid < lo - 1) { out.verdict = "below"; out.note = `Charged less than the published ${ref.rates.map((x) => `${x.pct.toFixed(2)}% + $${x.fix.toFixed(2)}`).filter((v, i, a) => a.indexOf(v) === i).join(" or ")}; the rate may have changed since the source was published.`; }
+        if (paid > hi + 1) { out.verdict = "above"; out.over = paid - hi; out.note = `Published: ${ref.rates.map((x) => `${x.pct.toFixed(2)}%${x.fix ? ` + $${x.fix.toFixed(2)}` : ""}`).filter((v, i, a) => a.indexOf(v) === i).join(" or ")}. Charged ${usd(out.over)} more than that.`; }
+        else if (paid < lo - 1) { out.verdict = "below"; out.note = `Charged less than the published ${ref.rates.map((x) => `${x.pct.toFixed(2)}%${x.fix ? ` + $${x.fix.toFixed(2)}` : ""}`).filter((v, i, a) => a.indexOf(v) === i).join(" or ")}; the rate may have changed since the source was published.`; }
         else { out.verdict = "differs"; out.note = "Rate differs from the published one, but the total is within the published range."; }
       }
       if (ref.band && r.count) {
@@ -184,7 +228,7 @@ const FeeCheck = (() => {
       netRates.filter((n) => !n.ok).map((n) => `${n.description}: charged ${usd(n.charged)}, published rate gives ${usd(n.expected)}`).join("; ") || `${netRates.length} lines checked.`);
 
     // the processor's percentage: rate per brand, and the sales it was charged on
-    const disc = lines.filter((l) => l.cls === "processor" && /SALES DISC|DISC RATE/.test(l.description.toUpperCase()) && l.math);
+    const disc = lines.filter((l) => l.cls === "processor" && /SALES DISC|DISC RATE|\bDISCOUNT\b/.test(l.description.toUpperCase()) && l.math && l.amount);
     const markup = {};
     for (const l of disc) {
       const b = cardBrand(l.brand || "");
@@ -192,7 +236,7 @@ const FeeCheck = (() => {
       markup[b].rates.add(l.math.rate); markup[b].base += Math.round(l.math.base * 100); markup[b].fee += -l.amount;
     }
     const baseBad = Object.entries(markup).filter(([b, m]) => grossBy[b] != null && m.base !== grossBy[b]);
-    if (Object.keys(markup).length) add("The processor's percentage was charged on your actual sales", !baseBad.length,
+    if (st.layoutKey === "cardpointe" && Object.keys(markup).length) add("The processor's percentage was charged on your actual sales", !baseBad.length,
       baseBad.length ? baseBad.map(([b, m]) => `${b}: charged on ${usd(m.base)}, but sales were ${usd(grossBy[b])}`).join("; ")
         : Object.entries(markup).map(([b, m]) => `${b}: ${usd(m.base)}`).join(", ") + ", matching sales by card brand (before refunds).");
 
@@ -200,7 +244,7 @@ const FeeCheck = (() => {
     const auths = lines.filter((l) => l.cls === "processor" && /AUTH(ORI[SZ]ATION)? FEE/.test(l.description.toUpperCase()) && l.math?.kind === "count" && !/AVS|CALL/.test(l.description.toUpperCase()));
     const authCount = sum(auths, (l) => l.math.base), authFee = -sum(auths, "amount");
     const authRates = [...new Set(auths.map((l) => l.math.rate))];
-    const txns = st.cardTotal ? st.cardTotal.netItems : sum(st.cardTypes, "netItems");
+    const txns = st.txns;
 
     // ------------------------------------------------ by card brand
     // worked out from the lines, not the statement's brand columns, which file some brand fees
@@ -219,18 +263,23 @@ const FeeCheck = (() => {
       if (saving > 100) findings.push({ amount: saving, kind: "habit", title: "Keyed-in and online sales cost more",
         text: `${usd0(vol)} of sales went through at card-not-present rates. If any of those customers were in front of you, tapping or inserting the card instead would have cost up to ${usd(saving)} less this month (about ${usd0(saving * 12)} a year). Online sales can't be tapped, so this only applies to payments typed in at the counter or taken over the phone.` });
     }
+    const rateText = (p, f) => `${(p * 100).toFixed(2)}%${f ? ` + $${(f / 100).toFixed(2)}` : ""}`;
     for (const r of ic.filter((x) => x.ref?.downgrade)) {
-      const normal = r.ref.normal ? r.ref.normal.rates.map((x) => Math.round(r.sales * x.pct / 100 + r.count * x.fix * 100)) : null;
+      // the normal rate for the same card type when the statement names it, otherwise every card type's
+      const idx = r.matched ? r.ref.rates.indexOf(r.matched) : -1;
+      const pool = r.ref.normal ? (idx >= 0 && r.ref.rates.length > 1 && r.ref.normal.rates[idx] ? [r.ref.normal.rates[idx]] : r.ref.normal.rates) : null;
+      const normal = pool ? pool.map((x) => Math.round(r.sales * x.pct / 100 + r.count * x.fix * 100)) : null;
       findings.push({ amount: normal ? -r.total - Math.min(...normal) : 0, kind: "downgrade", title: "A sale paid the most expensive rate",
-        text: `${r.description}: ${usd(r.sales)} over ${r.count} sale${r.count > 1 ? "s" : ""} cost ${usd(-r.total)} (${pct(r.rate)} + $${(r.perItem / 100).toFixed(2)}). ${normal ? `At the normal rate for that kind of card it would have been ${usd(Math.min(...normal))} to ${usd(Math.max(...normal))}. ` : ""}"Non-qualified" usually means the sale was missing data (such as the address check) or was settled late. Ask your processor what caused it.` });
+        text: `${r.description}: ${usd(r.sales)} over ${r.count} sale${r.count > 1 ? "s" : ""} cost ${usd(-r.total)} (${rateText(r.rate, r.perItem)}). ${normal ? `At the normal rate for that kind of card it would have been ${Math.min(...normal) === Math.max(...normal) ? usd(normal[0]) : `${usd(Math.min(...normal))} to ${usd(Math.max(...normal))}`}. ` : ""}This rate is what a sale falls to when it doesn't qualify for a cheaper one, usually because data was missing (such as the address check), the card was keyed in, or the sale was settled late. Ask your processor what caused it.` });
     }
     for (const r of ic.filter((x) => x.verdict === "above")) {
       findings.push({ amount: r.over, kind: "overcharge", title: "Charged above the published rate",
-        text: `${r.description}: ${pct(r.rate)} + $${(r.perItem / 100).toFixed(2)} on ${usd(r.sales)}. ${r.note} Ask your processor to explain or refund the difference.` });
+        text: `${r.description}: ${rateText(r.rate, r.perItem)} on ${usd(r.sales)}. ${r.note} Ask your processor to explain or refund the difference.` });
     }
     for (const l of mathBad) {
-      findings.push({ amount: Math.max(0, -l.amount - l.mathExpected), kind: "overcharge", title: "A fee line doesn't add up",
-        text: `${l.description}: the line's own numbers give ${usd(l.mathExpected)}, but ${usd(-l.amount)} was charged.` });
+      const under = -l.amount < l.mathExpected;
+      findings.push({ amount: Math.max(0, -l.amount - l.mathExpected), kind: under ? "info" : "overcharge", title: "A fee line doesn't add up",
+        text: `${l.description}: the line's own numbers give ${usd(l.mathExpected)}, but ${usd(-l.amount)} was charged${under ? ", which is in your favour. Still worth asking why: the rate or the amount shown may be wrong" : ""}.` });
     }
     for (const n of netRates.filter((x) => !x.ok)) {
       findings.push({ amount: Math.max(0, n.charged - n.expected), kind: "overcharge", title: "A card-network fee is higher than published",
@@ -244,16 +293,33 @@ const FeeCheck = (() => {
       findings.push({ amount: markupFee + authFee, kind: "markup", title: "What your processor charges on top",
         text: `Your processor adds ${Object.entries(groups).map(([r, b]) => `${r} on ${b.join(", ")}`).join(" and ")} sales${authRates.length ? `, plus $${authRates.map((r) => r.toFixed(2)).join("/")} each time a card is checked` : ""}. That came to ${usd(markupFee + authFee)} this month. This is the part to compare when you get a quote from another processor.` });
     }
-    const pci = lines.filter((l) => /PCI.*NON|NON.?COMPLIAN/.test(l.description.toUpperCase()));
+    const pci = lines.filter((l) => /PCI.*NON|NON.?COMPLIAN|\bSAQ\b|SCAN INCOMPLETE/.test(l.description.toUpperCase()));
     if (pci.length) findings.push({ amount: -sum(pci, "amount"), kind: "fixed", title: "A fee you can usually make go away",
       text: `${pci.map((l) => `${l.description} ${usd(-l.amount)}`).join(", ")}. Processors charge this when the yearly card-security questionnaire (PCI) hasn't been filed. Filing it, usually free through your processor's website, normally stops the fee: about ${usd0(-sum(pci, "amount") * 12)} a year.` });
-    const fixed = lines.filter((l) => l.cls === "processor" && !disc.includes(l) && !auths.includes(l) && !pci.includes(l));
+    const fixed = lines.filter((l) => l.cls === "processor" && l.amount && !disc.includes(l) && !auths.includes(l) && !pci.includes(l));
     if (fixed.length) findings.push({ amount: -sum(fixed, "amount"), kind: "fixed", title: "The processor's other fees",
       text: `${fixed.map((l) => `${l.description.replace(/\s+\d[\d,]*\s*TRANSACTIONS AT.*$/, "")} ${usd(-l.amount)}`).join(", ")}. These are set by the processor, not the card networks, so ask whether any can be dropped.` });
     if (authCount > txns && authRates.length) {
       const extra = authCount - txns;
       findings.push({ amount: Math.round(extra * authRates[0] * 100), kind: "habit", title: "More card checks than sales",
         text: `You were charged for ${authCount} authorisations but made ${txns} sales and refunds. The other ${extra} are declined cards, retries and card-on-file checks; at $${authRates[0].toFixed(2)} each that's about ${usd(Math.round(extra * authRates[0] * 100))}. A lot of declines and retries can also add card-network penalty fees.` });
+    }
+    // card-brand fees in a month with no sales on that brand
+    const brandsSold = new Set(st.cardTypes.filter((c) => c.gross).map((c) => cardBrand(c.brand)));
+    const idle = lines.filter((l) => l.brand && !brandsSold.has(l.brand) && l.amount);
+    if (idle.length) {
+      const names = [...new Set(idle.map((l) => l.brand === "AMEX" ? "Amex" : l.brand[0] + l.brand.slice(1).toLowerCase()))];
+      findings.push({ amount: -sum(idle, "amount"), kind: "info", title: `${names.join(" and ")} fees with no ${names.join(" or ")} sales`,
+        text: `${idle.map((l) => `${l.description} ${usd(-l.amount)}`).join(", ")}. You took no ${names.join(" or ")} cards this month, yet these were charged. Some network fees are monthly, but ask your processor which ones apply when there are no sales.` });
+    }
+    // the statement's own "effective rate" table, when it has one, against everything deducted
+    if (st.emdr?.length) {
+      const shown = sum(st.emdr, "fees");
+      if (fees - shown > 100) {
+        const list = st.emdr.filter((e) => e.volume).map((e) => `${e.name} ${(e.rate * 100).toFixed(e.rate < 0.001 ? 3 : 2)}%`).join(", ");
+        findings.push({ amount: fees - shown, kind: "info", title: "The statement's own effective rate leaves fees out",
+          text: `Its effective-rate table (${list}) counts ${usd(shown)} in fees. You paid ${usd(fees)} in all, so ${usd(fees - shown)} isn't counted there: penalties, rentals, monthly and per-item charges. All-in, card payments cost you ${pct(fees / sales)} of sales.` });
+      }
     }
     const unknown = lines.filter((l) => l.cls === "unknown");
     if (unknown.length) findings.push({ amount: -sum(unknown, "amount"), kind: "unknown", title: "Lines the checker couldn't place",

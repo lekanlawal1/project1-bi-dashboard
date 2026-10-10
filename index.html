@@ -105,14 +105,17 @@
 
   <!-- ============================================================ tab 2: card fees -->
   <section id="pane-fees" role="tabpanel" aria-labelledby="tab-fees" hidden>
-    <p class="lead">Drop in the monthly statement from your card processor (the PDF you download from their website).
+    <p class="lead">Drop in the monthly statement from your card processor (the PDF you download from their website), from the US or Canada.
       Every fee is checked: the statement has to add up to the cent, each interchange line is compared with the card
       networks' published rates, and every dollar is sorted into who got it. Only the processor's share is negotiable.</p>
     <div class="start">
-      <button type="button" class="btn primary" id="fee-sample">Try it with a sample statement</button>
+      <div class="sample-pair">
+        <button type="button" class="btn primary" id="fee-sample" data-fee-sample="sample/sample_statement.pdf" data-label="US sample statement">Try a US sample</button>
+        <button type="button" class="btn" id="fee-sample-ca" data-fee-sample="sample/sample_statement_ca.pdf" data-label="Canadian sample statement">Try a Canadian sample</button>
+      </div>
       <label class="drop" id="fee-drop">
         <input type="file" id="fee-file" accept=".pdf,application/pdf">
-        <b>Or drop your statement here</b><span>PDF from your processor. CardPointe (Fiserv) statements for now; others get a quick check.</span>
+        <b>Or drop your statement here</b><span>PDF from your processor. Checked line by line: CardPointe (Fiserv) and TSYS (Canada). Others get a quick check.</span>
       </label>
     </div>
     <p class="status" id="fee-status" role="status"></p>
@@ -134,12 +137,13 @@
 
     <section class="panel" id="quick">
       <h2>Quick check, for any statement</h2>
-      <p class="sub">If your statement isn't supported yet, two numbers from its summary still tell you your real rate.</p>
+      <p class="sub">If your statement's layout isn't supported yet, two numbers from its summary still tell you your real rate. Drop it in above and the checker fills these in from its labelled totals for you to confirm.</p>
       <div class="quick-grid">
         <label>Card sales this month <span class="money-in"><i>$</i><input id="q-sales" inputmode="decimal" placeholder="e.g. 48,250.00"></span></label>
         <label>Total fees this month <span class="money-in"><i>$</i><input id="q-fees" inputmode="decimal" placeholder="e.g. 1,390.75"></span></label>
         <label>Interchange and card-network fees, if listed <span class="money-in"><i>$</i><input id="q-pass" inputmode="decimal" placeholder="optional"></span></label>
       </div>
+      <div class="q-found" id="q-found" hidden></div>
       <p class="quick-out" id="q-out" aria-live="polite"></p>
     </section>
 
@@ -151,9 +155,10 @@
         <div><i>3</i><b>Checked against published rates</b><span>Each interchange line is compared with Visa's, Mastercard's and Amex's published rates for that program.</span></div>
         <div><i>4</i><b>Who got each dollar</b><span>Every fee is sorted, by written rules you can read, into card-issuing bank, card network or your processor.</span></div>
       </div>
-      <p class="note">The sample is a made-up shop's statement in the same layout as a real one, with a few problems planted
-        on purpose. Rates are from Visa's April 2026 schedule, the Amex OptBlue pricing guide (Fall 2025) and a published summary of
-        Mastercard's rates; each line says which. This is a check, not financial advice.</p>
+      <p class="note">The samples are made-up businesses' statements in the same layouts as real ones, with a few problems
+        planted on purpose. US rates are from Visa's April 2026 schedule, the Amex OptBlue pricing guide (Fall 2025) and a
+        published summary of Mastercard's rates; Canadian rates from Visa Canada's own schedules, including the change on
+        24 October 2026. Each line says which. This is a check, not financial advice.</p>
     </section>
   </section>
 </main>

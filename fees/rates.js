@@ -14,6 +14,8 @@ const FeeRates = (() => {
     visa: { name: "Visa USA Interchange Reimbursement Fees, rates effective 18 April 2026", url: "https://usa.visa.com/content/dam/VCOM/download/merchants/visa-usa-interchange-reimbursement-fees.pdf", official: true },
     mc: { name: "Helcim's summary of Mastercard U.S. interchange (Mastercard's own schedule is not openly downloadable)", url: "https://www.helcim.com/mastercard-usa-interchange-rates/", official: false },
     amex: { name: "American Express OptBlue Pricing Guide 25.2 (Fall 2025), as published by a Fiserv bank partner", url: "https://www.fhb.com/sites/default/files/2025-10/25.2_American_Express_OptBlue_Program_Pricing_Guide.pdf", official: false },
+    visaCA: { name: "Visa Canada Interchange Reimbursement Fees (current schedule)", url: "https://www.visa.ca/content/dam/VCOM/regional/na/canada/Support/Documents/visa-canada-interchange-rates.pdf", official: true },
+    visaCAnext: { name: "Visa Canada, Upcoming Interchange Modifications, effective 24 October 2026", url: "https://www.visa.ca/content/dam/VCOM/regional/na/canada/Support/Documents/visa-canada-upcoming-changes-to-interchange-rates.pdf", official: true },
     fees: { name: "Published card-network fee schedules (Visa and Mastercard assessments are widely reported, not posted by the networks)", url: "https://www.helcim.com/mastercard-usa-interchange-rates/", official: false },
   };
 
@@ -110,9 +112,59 @@ const FeeRates = (() => {
       band: ind.bands[tier - 1], alt: key ? { name: `Tier ${tier}, card swiped, tapped or inserted`, rates: [{ pct: ind.swipe[tier - 1], fix: .10 }] } : null };
   }
 
+  // ---------------------------------------------------------------- Visa Canada (official schedules)
+  // Canadian credit interchange is a percentage only, by card type: Classic/Gold/Platinum,
+  // Infinite, Infinite+, Infinite Privilege. Rates changed on 24 October 2026; for sales from
+  // then on, only the programs whose new rate Visa has published are checked.
+  const CA_COLS = ["Classic, Gold or Platinum", "Infinite", "Infinite+", "Infinite Privilege"];
+  const CA_SWITCH = "2026-10-24";
+  const CA = {   // [program pattern, name, current rates, rates from 24 Oct 2026 (null: not published), downgrade?]
+    smElec: [/SMALL MERCHANT ELECTRONIC|SM MERCH(ANT)? ELEC/, "Small Merchant Electronic, card present", [0.77, 0.99, 1.05, 1.80], [0.70, 0.89, null, null]],
+    smCnpTok: [/SMALL MERCHANT CNP.*TOKEN/, "Small Merchant card not present, tokenized", [1.25, 1.50, 2.15, 2.25], [1.15, 1.40, null, null]],
+    smCnp: [/SMALL MERCHANT CNP|SMALL MERCHANT CARD NOT PRESENT/, "Small Merchant card not present", [1.30, 1.55, 2.20, 2.30], [1.20, 1.45, null, null]],
+    cnpTok: [/(CNP|CARD NOT PRESENT).*TOKEN/, "Card not present, tokenized", [1.35, 1.60, 2.25, 2.35], null],
+    cnp: [/\bCNP\b|CARD NOT PRESENT/, "Card not present", [1.40, 1.65, 2.30, 2.40], null],
+    recurring: [/RECURRING/, "Recurring payments", [1.25, 1.53, 1.95, 1.95], null],
+    elec: [/ELECTRONIC/, "Electronic, card present", [1.25, 1.57, 1.60, 2.08], null],
+    standard: [/STANDARD (CONSUMER )?CREDIT|CANADA STANDARD$|\bSTANDARD\b/, "Standard (the rate a sale falls to when it qualifies for nothing cheaper)", [1.45, 1.70, 2.35, 2.45], null, true],
+  };
+  function visaCanadaCols(d) {
+    if (/PRIVILEGE|INF PRIV|\bVIP\b/.test(d)) return [3];
+    if (/INFINITE\s*\+|INF\s*\+|INF PLUS|INFINITE PLUS/.test(d)) return [2];
+    if (/\bINF\b|INFINITE/.test(d)) return [1];
+    if (/\bCGP\b|CLASSIC|GOLD|PLATINUM/.test(d)) return [0];
+    return [0, 1, 2, 3];
+  }
+  function visaCanada(d, date) {
+    const after = date && date >= CA_SWITCH;
+    if (/BUSINESS/.test(d)) {
+      if (!/STANDARD/.test(d)) return null;
+      const inf = /INFINITE/.test(d);
+      if (after) return inf ? null : { name: "Business credit, Standard", rates: [{ pct: 2.15, fix: 0, col: "Business" }], source: "visaCAnext" };
+      return { name: `${inf ? "Infinite Business" : "Business"} credit, Standard`, rates: [{ pct: inf ? 2.35 : 2.00, fix: 0, col: inf ? "Visa Infinite Business" : "Business" }], source: "visaCA" };
+    }
+    const cols = visaCanadaCols(d);
+    for (const [re, name, now, next, downgrade] of Object.values(CA)) {
+      if (!re.test(d)) continue;
+      const table = after ? next : now;
+      if (!table) return null;
+      const rates = cols.map((i) => table[i] == null ? null : { pct: table[i], fix: 0, col: CA_COLS[i] }).filter(Boolean);
+      if (!rates.length) return null;
+      const out = { name, rates, source: after ? "visaCAnext" : "visaCA" };
+      if (downgrade) {
+        out.downgrade = true;
+        const sm = after ? CA.smElec[3] : CA.smElec[2];
+        out.normal = { name: "Small Merchant Electronic", rates: cols.map((i) => sm[i] == null ? null : { pct: sm[i], fix: 0 }).filter(Boolean) };
+      }
+      return out;
+    }
+    return null;
+  }
+
   // ---------------------------------------------------------------- look up one interchange line
-  function lookup(brand, description) {
+  function lookup(brand, description, { country = "US", date } = {}) {
     const d = description.toUpperCase();
+    if (country === "CA") return /^VS|^VI|^VISA/.test(d) || /^VISA/.test(brand) ? visaCanada(d, date) : null;
     if (/^VI|^VISA/.test(brand) || /^VI[-\s]/.test(d)) return visa(d);
     if (/^MASTER|^MC/.test(brand) || /^MC[-\s]/.test(d)) return mastercard(d);
     if (/AMEX|AMERICAN/.test(brand) || /^AXP/.test(d)) return amex(d);

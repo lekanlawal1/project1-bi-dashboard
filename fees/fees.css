@@ -93,3 +93,9 @@ table.fees-t tbody tr { cursor: default; }
 
 @media (max-width: 760px) { .fee-kpis { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 520px) { .tabs { grid-template-columns: 1fr; } .tabs [role="tab"] span { font-size: 12.5px; } .fee-summary .headline { font-size: 1.1rem; } }
+
+.sample-pair { display: flex; flex-direction: column; gap: 10px; }
+.q-found { margin-top: 12px; background: var(--warn-bg); border-radius: 12px; padding: 10px 14px; font-size: 14px; }
+.q-found ul { margin: 4px 0 0; padding-left: 18px; }
+.q-found li { overflow-wrap: anywhere; }
+@media (max-width: 520px) { table.fees-t td:first-child { min-width: 128px; } table.fees-t { font-size: 12.5px; } }
