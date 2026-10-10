@@ -19,7 +19,7 @@ const FeeGeneric = (() => {
   const isNumeric = (s) => MONEY_IN(s) != null || /^-?[\d,]*\.?\d+\s?%$/.test(s) || /^[\d,]+$/.test(s) || /^\$-?[\d,]*\.\d{3,4}$/.test(s) || /^\$$/.test(s);
   const DATE = /^\d{1,2}[/-]\d{1,2}([/-]\d{2,4})?$|^\d{4}-\d{2}-\d{2}$|^[A-Z][a-z]{2} \d{1,2}(, \d{4})?$/;
   const NOISE = /^Page\b|^PERIOD:|Page \d+ of \d+/i;
-  const TOTAL = /\btotals?\b|month end charge/i;
+  const TOTAL = /(\b|sub)totals?\b|month end charge/i;          // "Total", "Totals", "Subtotal"
   // labels that name the month's total fees, strongest first
   const FEE_TOTAL = [/total amount deducted/i, /total (merchant |processing )?fees( and charges)?( charged| due| deducted)?\b/i, /month end charge/i,
     /fees? (charged|deducted|due)\b/i, /total charges/i, /total deductions/i, /net (rates? & )?fees/i];
