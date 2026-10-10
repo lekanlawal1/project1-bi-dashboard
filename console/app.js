@@ -1,4 +1,4 @@
-/* Margin Console page: load a file into DuckDB (in the browser), confirm the columns, then run the
+/* Money Snitch, margins tab: load a file into DuckDB (in the browser), confirm the columns, then run the
    SQL in core.js for every chart and draw it with charts.js. Clicking a mark filters every chart;
    each chart shows the exact query it ran. Nothing is uploaded anywhere. */
 
