@@ -1,4 +1,4 @@
-/* Margin Console core: everything that decides what the numbers mean. No DOM here, so the tests
+/* Money Snitch, margins tab, core: everything that decides what the numbers mean. No DOM here, so the tests
    run it in Node: column detection, date formats, the SQL that cleans an upload into one tidy
    `sales` table, the SQL behind every chart, and the plain-English findings.
 

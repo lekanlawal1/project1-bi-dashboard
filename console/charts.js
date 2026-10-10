@@ -1,4 +1,4 @@
-/* Hand-built SVG charts for the Margin Console. Each function returns markup; marks carry
+/* Hand-built SVG charts for Money Snitch (margins tab). Each function returns markup; marks carry
    data-tip (tooltip HTML, URI-encoded) and data-filter (JSON of the filter a click applies), which
    app.js wires up once per render. One axis per chart; polarity (profit, margin) uses the two
    validated diverging tokens --pos and --neg, magnitude (sales) a single neutral hue. */

@@ -1,4 +1,4 @@
-/* Margin Console. Shares the portfolio's look: cream paper, ink outlines, offset shadows, one accent
+/* Money Snitch. Shares the portfolio's look: cream paper, ink outlines, offset shadows, one accent
    per project (amber, the colour of its building on the island). Data colours are tokens: --pos/--neg
    for profit and loss (a validated diverging pair), --mag for plain magnitudes like sales. */
 :root {

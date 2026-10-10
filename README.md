@@ -1,4 +1,6 @@
-# Margin Console
+# Money Snitch
+
+It tells you who's taking your business's money.
 
 Two separate money checks for a small business, in one page. Use either one, or both:
 
