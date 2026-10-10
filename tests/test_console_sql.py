@@ -118,3 +118,23 @@ console.log(JSON.stringify({{ load: C.loadSQL({json.dumps(str(SHOP))}), clean: C
     assert pan[1] == pytest.approx(12.60 / 42.00)            # 30% off the pre-discount price
     two = c.execute("SELECT profit FROM sales WHERE order_id = '#1001'").fetchone()[0]
     assert two == pytest.approx(84.00 - 2 * 31.00)           # cost per unit times quantity
+
+
+def test_minimal_file_runs_every_chart(tmp_path):
+    """Only a date, a product, sales and profit: no category, region, customer or order number.
+    Every chart's SQL must still run, and each line counts as one order."""
+    f = tmp_path / "minimal.csv"
+    f.write_text("Date,Product,Sales,Profit\n2026-08-01,Mug,12.00,4.00\n2026-08-01,Mug,12.00,4.00\n2026-08-02,Lamp,40.00,-3.00\n")
+    s = dump_for(f)
+    c = duckdb.connect()
+    c.execute(s["load"])
+    c.execute(s["clean"])
+    for k in ("kpi", "discount", "category", "region", "heatmap", "pareto", "losers", "monthly"):
+        c.execute(s[k]).fetchall()
+    sales, profit, _, orders = c.execute(s["kpi"]).fetchone()[:4]
+    assert (sales, profit, orders) == (pytest.approx(52.0), pytest.approx(1.0), 2)   # the duplicate line is dropped
+
+
+def dump_for(path):
+    out = subprocess.run(["node", str(ROOT / "tests" / "sql_dump.js"), str(path), "{}"], capture_output=True, text=True, check=True).stdout
+    return json.loads(out)

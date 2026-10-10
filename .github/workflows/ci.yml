@@ -1,5 +1,5 @@
 name: CI
-# The console's logic (column guessing, dates, filters, findings) and its SQL, checked against an
+# The card-fee checker on its made-up sample statement, and the console's logic (column guessing, dates, filters, findings) and its SQL, checked against an
 # independent pandas calculation on the raw Superstore file.
 on:
   push:
@@ -20,5 +20,7 @@ jobs:
       - run: pip install duckdb pandas pytest
       - name: Core logic
         run: node --test tests/core.test.mjs
+      - name: Card fee checker
+        run: node --test tests/fees.test.mjs
       - name: SQL against pandas, on the raw export
         run: python -m pytest tests -q

@@ -143,6 +143,12 @@ async function build(isSample) {
     status("");
     await render();
     $("dash").scrollIntoView({ behavior: "smooth", block: "start" });
+    // the card-fee tab can compare its statement month with this file, if both are loaded
+    window.MarginBridge = {
+      fileName, months: meta.months, hasProfit: meta.hasProfit,
+      month: async (ym) => /^\d{4}-\d{2}$/.test(ym) ? (await query(`SELECT sum(sales) AS sales, sum(profit) AS profit FROM sales WHERE strftime(order_date, '%Y-%m') = '${ym}'`))[0] : null,
+    };
+    dispatchEvent(new Event("margin:ready"));
   } catch (err) { status(`Couldn't build the dashboard: ${err.message.split("\n")[0]}`, true); }
 }
 function dataCheck(q, sql) {
