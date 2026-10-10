@@ -9,8 +9,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="console/style.css?v=20261010b">
-<link rel="stylesheet" href="fees/fees.css?v=20261010b">
+<link rel="stylesheet" href="console/style.css?v=20261010c">
+<link rel="stylesheet" href="fees/fees.css?v=20261010c">
 <script src="https://lekanlawal1.github.io/portfolio-site/portfolio-bar.js" data-project="store" defer></script>
 </head>
 <body>
@@ -112,10 +112,11 @@
       <div class="sample-pair">
         <button type="button" class="btn primary" id="fee-sample" data-fee-sample="sample/sample_statement.pdf" data-label="US sample statement">Try a US sample</button>
         <button type="button" class="btn" id="fee-sample-ca" data-fee-sample="sample/sample_statement_ca.pdf" data-label="Canadian sample statement">Try a Canadian sample</button>
+        <button type="button" class="btn" id="fee-sample-other" data-fee-sample="sample/sample_statement_other.pdf" data-label="unfamiliar-layout sample">Try an unfamiliar layout</button>
       </div>
       <label class="drop" id="fee-drop">
         <input type="file" id="fee-file" accept=".pdf,application/pdf">
-        <b>Or drop your statement here</b><span>PDF from your processor. Checked line by line: CardPointe (Fiserv) and TSYS (Canada). Others get a quick check.</span>
+        <b>Or drop your statement here</b><span>PDF from any processor, US or Canada. Unfamiliar layouts are read by matching their own totals.</span>
       </label>
     </div>
     <p class="status" id="fee-status" role="status"></p>
@@ -151,7 +152,7 @@
       <h2>How it works</h2>
       <div class="steps">
         <div><i>1</i><b>Your statement stays put</b><span>The PDF is read by pdf.js inside your browser. Nothing is uploaded or stored.</span></div>
-        <div><i>2</i><b>It has to add up</b><span>Daily sales and every fee line must match the statement's own totals to the cent, or no results are shown.</span></div>
+        <div><i>2</i><b>It has to add up</b><span>Every fee line must match the statement's own totals to the cent, or no results are shown. That's also how unfamiliar layouts are read: the reader looks for the sections that add up exactly to the printed fee total.</span></div>
         <div><i>3</i><b>Checked against published rates</b><span>Each interchange line is compared with Visa's, Mastercard's and Amex's published rates for that program.</span></div>
         <div><i>4</i><b>Who got each dollar</b><span>Every fee is sorted, by written rules you can read, into card-issuing bank, card network or your processor.</span></div>
       </div>
@@ -165,12 +166,13 @@
 <div class="tip" id="tip" role="tooltip" hidden></div>
 <footer class="wrap foot">Built by <a href="https://lekanlawal1.github.io/portfolio-site/">Lekan Lawal</a>. Runs on DuckDB-WASM and pdf.js; Excel files are read with SheetJS.</footer>
 <script src="vendor/xlsx.mini.min.js"></script>
-<script src="console/core.js?v=20261010b"></script>
-<script src="console/charts.js?v=20261010b"></script>
-<script src="console/app.js?v=20261010b"></script>
-<script src="fees/statement.js?v=20261010b"></script>
-<script src="fees/rates.js?v=20261010b"></script>
-<script src="fees/check.js?v=20261010b"></script>
-<script src="fees/feeapp.js?v=20261010b"></script>
+<script src="console/core.js?v=20261010c"></script>
+<script src="console/charts.js?v=20261010c"></script>
+<script src="console/app.js?v=20261010c"></script>
+<script src="fees/statement.js?v=20261010c"></script>
+<script src="fees/rates.js?v=20261010c"></script>
+<script src="fees/generic.js?v=20261010c"></script>
+<script src="fees/check.js?v=20261010c"></script>
+<script src="fees/feeapp.js?v=20261010c"></script>
 </body>
 </html>

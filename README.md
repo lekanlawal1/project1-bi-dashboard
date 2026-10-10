@@ -93,11 +93,22 @@ charges on refunds as well as sales), and the statement's own "EMDR" effective-r
 the cent and then compared with everything actually deducted (on a real statement it left out 29% of the fees).
 Canadian interchange is checked against Visa Canada's own schedules, including the change on 24 October 2026.
 
-**Any other statement** gets the quick check, filled in from its labelled totals ("Total Amount Deducted",
-"Total Fees Charged", "Total Sales"...), with the line each number came from so the person can confirm it. I
-looked for public sample statements to build more layouts from: Chase's and Elavon's guides can't be
-downloaded, Moneris, Clover and Square publish none, and the ones that exist (Australian banks) are annotated
-pictures of statements. A parser built from a picture would be a guess, so new layouts wait for real statements.
+**Any other statement is read by the general reader** (`fees/generic.js`), which needs no knowledge of the
+layout because it lets the statement check itself. It finds every run of rows that ends in a "Total" line and
+adds up to it exactly (in any of its columns), finds the printed fee total ("Total Fees Charged", "Total Amount
+Deducted", "Month End Charge"...), and keeps the one combination of sections that adds up to that total to the
+cent. No combination, or more than one, and it refuses. A wrong reading would have to hit the printed total by
+accident, which is why it can be trusted when it succeeds. The fee lines then go through the same checks as
+everything else: who gets each dollar, line arithmetic, and published rates for any interchange program it
+recognises (rates printed in a separate table are matched by program name). Card sales come from a labelled
+total or from the card-brand table, and the page shows the line used so the figure can be checked.
+
+How it was tested: both real statements, read through the general reader as if their layouts were unknown,
+came out identical to their own readers on every bucket, to the cent. Three made-up statements in new layouts
+(`tools/sample_statement_other.mjs`): an interchange-plus statement with a new column order (read, with its
+planted overcharge and arithmetic error found), a flat-rate statement that only lists fees by day (read, and
+said to be flat-rate), and one whose printed total is off by $1.00 (refused). When a statement can't be read
+line by line, its labelled totals still fill in the quick check, with the line each came from.
 
 **Limits.** Scanned or photographed statements have no text to read. US Mastercard rates come from a secondary
 source, and Canadian Mastercard rates aren't checked yet. It's a check, not financial advice.

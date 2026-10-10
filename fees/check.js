@@ -23,7 +23,9 @@ const FeeCheck = (() => {
   const RULES = [
     ["processor", /PCI|NON.?COMPLIAN|\bSAQ\b|SCAN INCOMPLETE/, "A penalty the processor charges when the yearly card-security questionnaire (PCI) isn't filed. Not a card-network fee, and usually avoidable."],
     ["network", /LICENSE VOLUME|ACQUIRER LICENSE/, "Mastercard's acquirer licence fee: a tiny percentage of your Mastercard sales. Same for every processor."],
-    ["processor", /SALES DISC|DISC RATE|\bDISCOUNT\b/, "The processor's own percentage on your sales. This is their markup, and it's negotiable."],
+    ["processor", /^(VISA|MASTERCARD|MASTER CARD|AMERICAN EXPRESS|AMEX|DISCOVER|INTERAC)( (DEBIT|BUSINESS|CREDIT|PREPAID|COMMERCIAL))?$/,
+      "The processor's discount on this card type (a line named only by the card): their markup, and negotiable."],
+    ["processor", /SALES DISC|DISC RATE|\bDISCOUNT\b|MARKUP|MARK-UP|\bMARGIN\b/, "The processor's own percentage on your sales. This is their markup, and it's negotiable."],
     ["interchange", /INTERCHANGE/, "Interchange: the fee that goes to the bank that issued your customer's card. Same for every processor."],
     ["network", /ASSESS/, "A card network's assessment: a small percentage Visa, Mastercard, Discover or Amex charge on every sale. Same for every processor."],
     ["network", /NETWORK|NTWK/, "A card network's fee for using its network. Same for every processor."],
@@ -39,7 +41,7 @@ const FeeCheck = (() => {
 
   function classify(line, icNames) {
     const d = line.description.toUpperCase();
-    if (icNames.has(d)) return { cls: "interchange", why: /^AXP|AMEX/.test(d)
+    if (icNames.has(d) || line.isIC) return { cls: "interchange", why: /^AXP|AMEX/.test(d)
       ? "American Express's rate for this kind of sale, its version of interchange. Same for every processor."
       : "Interchange: the fee that goes to the bank that issued your customer's card. Set by the card network, same for every processor." };
     for (const [cls, re, why] of RULES) if (re.test(d)) return { cls, why };
@@ -113,6 +115,18 @@ const FeeCheck = (() => {
 
   }
 
+  // ---------------------------------------------------------------- the general reader
+  // It only succeeds when its sections already add up, so these checks restate what it proved.
+  function reconcileGeneric(st, add) {
+    const lineSum = sum(st.feeLines, "amount");
+    add("Fee lines add up to the statement's printed fee total", lineSum === st.feeTotal,
+      `${st.feeLines.length} lines in ${st.sectionsUsed.length} section${st.sectionsUsed.length > 1 ? "s" : ""} sum to ${usd(-lineSum)}; the line "${st.feeTotalFrom.line}" on page ${st.feeTotalFrom.page} says ${usd(-st.feeTotal)}.`, true);
+    add("Each fee section adds up to its own total line", true,
+      st.sectionsUsed.map((x) => `"${x.label}" on page ${x.page}: ${x.rows} lines, ${usd(x.total)}`).join("; ") + ".");
+    add("Card sales were found on the statement", st.sales != null,
+      st.sales != null ? `${usd(st.sales)}, from the line "${st.salesFrom.line}" on page ${st.salesFrom.page}. Check this one: it sets the effective rate.` : "No line labelled with total sales was found, so the effective rate can't be worked out.");
+  }
+
   // ---------------------------------------------------------------- TSYS (Canada): its own totals
   function reconcileTsys(st, add) {
     const dt = st.depositTotal, s = st.summary;
@@ -153,7 +167,7 @@ const FeeCheck = (() => {
 
     // ------------------------------------------------ does it add up? (each layout has its own totals)
     const sales = st.sales, feeTotal = st.feeTotal;
-    (st.layoutKey === "tsys" ? reconcileTsys : reconcileCardPointe)(st, add);
+    ({ tsys: reconcileTsys, generic: reconcileGeneric }[st.layoutKey] || reconcileCardPointe)(st, add);
 
     const critical = checks.filter((c) => c.critical && !c.ok);
     if (critical.length) return { ok: false, checks, reason: "The statement didn't add up when it was read, so no results are shown. " + critical.map((c) => c.detail).join(" ") };
@@ -164,7 +178,7 @@ const FeeCheck = (() => {
       const d = l.description.toUpperCase();
       const math = l.calc || lineMath(d);
       let mathOk = null, mathExpected = null;
-      if (math) { mathExpected = Math.round(math.rate * math.base * 100); mathOk = Math.abs(Math.abs(l.amount) - mathExpected) <= (math.tolerance || 1); }
+      if (math) { mathExpected = Math.round(math.rate * math.base * 100 + (math.count && math.perItem ? math.count * math.perItem * 100 : 0)); mathOk = Math.abs(Math.abs(l.amount) - mathExpected) <= (math.tolerance || 1); }
       const prodBrand = brandOf(String(l.product || "").toUpperCase());
       const icRow = st.ic.find((r) => r.description.toUpperCase() === d);
       const brand = l.brand || (icRow ? cardBrand(icRow.brand) : prodBrand || brandOf(d));
@@ -228,7 +242,7 @@ const FeeCheck = (() => {
       netRates.filter((n) => !n.ok).map((n) => `${n.description}: charged ${usd(n.charged)}, published rate gives ${usd(n.expected)}`).join("; ") || `${netRates.length} lines checked.`);
 
     // the processor's percentage: rate per brand, and the sales it was charged on
-    const disc = lines.filter((l) => l.cls === "processor" && /SALES DISC|DISC RATE|\bDISCOUNT\b/.test(l.description.toUpperCase()) && l.math && l.amount);
+    const disc = lines.filter((l) => l.cls === "processor" && /SALES DISC|DISC RATE|\bDISCOUNT\b|MARKUP|MARK-UP|\bMARGIN\b/.test(l.description.toUpperCase()) && l.math?.kind === "rate" && l.amount);
     const markup = {};
     for (const l of disc) {
       const b = cardBrand(l.brand || "");
@@ -299,14 +313,14 @@ const FeeCheck = (() => {
     const fixed = lines.filter((l) => l.cls === "processor" && l.amount && !disc.includes(l) && !auths.includes(l) && !pci.includes(l));
     if (fixed.length) findings.push({ amount: -sum(fixed, "amount"), kind: "fixed", title: "The processor's other fees",
       text: `${fixed.map((l) => `${l.description.replace(/\s+\d[\d,]*\s*TRANSACTIONS AT.*$/, "")} ${usd(-l.amount)}`).join(", ")}. These are set by the processor, not the card networks, so ask whether any can be dropped.` });
-    if (authCount > txns && authRates.length) {
+    if (txns != null && authCount > txns && authRates.length) {
       const extra = authCount - txns;
       findings.push({ amount: Math.round(extra * authRates[0] * 100), kind: "habit", title: "More card checks than sales",
         text: `You were charged for ${authCount} authorisations but made ${txns} sales and refunds. The other ${extra} are declined cards, retries and card-on-file checks; at $${authRates[0].toFixed(2)} each that's about ${usd(Math.round(extra * authRates[0] * 100))}. A lot of declines and retries can also add card-network penalty fees.` });
     }
     // card-brand fees in a month with no sales on that brand
     const brandsSold = new Set(st.cardTypes.filter((c) => c.gross).map((c) => cardBrand(c.brand)));
-    const idle = lines.filter((l) => l.brand && !brandsSold.has(l.brand) && l.amount);
+    const idle = st.cardTypes.length ? lines.filter((l) => l.brand && !brandsSold.has(l.brand) && l.amount) : [];
     if (idle.length) {
       const names = [...new Set(idle.map((l) => l.brand === "AMEX" ? "Amex" : l.brand[0] + l.brand.slice(1).toLowerCase()))];
       findings.push({ amount: -sum(idle, "amount"), kind: "info", title: `${names.join(" and ")} fees with no ${names.join(" or ")} sales`,
@@ -318,10 +332,18 @@ const FeeCheck = (() => {
       if (fees - shown > 100) {
         const list = st.emdr.filter((e) => e.volume).map((e) => `${e.name} ${(e.rate * 100).toFixed(e.rate < 0.001 ? 3 : 2)}%`).join(", ");
         findings.push({ amount: fees - shown, kind: "info", title: "The statement's own effective rate leaves fees out",
-          text: `Its effective-rate table (${list}) counts ${usd(shown)} in fees. You paid ${usd(fees)} in all, so ${usd(fees - shown)} isn't counted there: penalties, rentals, monthly and per-item charges. All-in, card payments cost you ${pct(fees / sales)} of sales.` });
+          text: `Its effective-rate table (${list}) counts ${usd(shown)} in fees. You paid ${usd(fees)} in all, so ${usd(fees - shown)} isn't counted there: penalties, rentals, monthly and per-item charges. All-in, card payments cost you ${sales ? pct(fees / sales) : "n/a"} of sales.` });
       }
     }
     const unknown = lines.filter((l) => l.cls === "unknown");
+    // fees listed only by day: flat-rate pricing, where one fee covers everyone's share
+    const DAY = /^([A-Z]{3} \d{1,2}(, \d{4})?|\d{1,2}[/-]\d{1,2}([/-]\d{2,4})?|\d{4}-\d{2}-\d{2})$/i;
+    const daily = unknown.filter((l) => DAY.test(l.description.trim()));
+    if (daily.length && daily.length >= 0.8 * unknown.length) {
+      findings.push({ amount: -sum(daily, "amount"), kind: "info", title: "Fees are only shown by day",
+        text: `This statement lists ${usd(-sum(daily, "amount"))} of fees day by day, not by type, which is how flat-rate pricing (one percentage for every card) is usually shown. The processor pays the card-issuing banks and networks out of that one fee, so the split can't be seen here. Compare it as a single number: ${sales ? `card payments cost you ${pct(fees / sales)} of sales.` : "your effective rate."} Flat rates are simple, but businesses with larger sales or more debit cards often pay less on interchange-plus pricing.` });
+      unknown.splice(0, unknown.length, ...unknown.filter((l) => !daily.includes(l)));
+    }
     if (unknown.length) findings.push({ amount: -sum(unknown, "amount"), kind: "unknown", title: "Lines the checker couldn't place",
       text: `${unknown.map((l) => l.description).join(", ")}. They're counted in the total but not sorted into who gets the money.` });
     findings.sort((a, b) => b.amount - a.amount);
@@ -337,7 +359,7 @@ const FeeCheck = (() => {
   // ---------------------------------------------------------------- "what if" a different markup
   function whatIf(a, { pct: p, perTxn }) {
     const vol = sum(Object.values(a.markup), "base");
-    const count = a.authCount || a.txns;
+    const count = a.authCount || a.txns || 0;
     const now = sum(Object.values(a.markup), "fee") + a.authFee;
     const then = Math.round(vol * p / 100 + count * perTxn * 100);
     return { vol, count, now, then, saving: now - then };
