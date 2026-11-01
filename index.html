@@ -9,8 +9,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="console/style.css?v=20261102">
-<link rel="stylesheet" href="fees/fees.css?v=20261102">
+<link rel="stylesheet" href="console/style.css?v=20261103">
+<link rel="stylesheet" href="fees/fees.css?v=20261103">
 <script src="https://lekanlawal1.github.io/portfolio-site/portfolio-bar.js" data-project="store" defer></script>
 </head>
 <body>
@@ -44,6 +44,22 @@
         <b>Or drop your own file here</b><span>CSV or Excel, one row per sale or order line</span>
       </label>
     </div>
+    <details class="needs">
+      <summary>What your file needs</summary>
+      <div class="needs-body">
+        <p><b>Required:</b> one row per sale or order line, with an <b>order date</b> and a <b>sales amount</b>.</p>
+        <p><b>Each extra column unlocks more:</b></p>
+        <ul>
+          <li><b>Profit</b> or <b>cost</b>: margins and the products that lose money</li>
+          <li><b>Discount</b> (a rate like 0.2, or a dollar amount): where discounting stops paying</li>
+          <li><b>Category</b>, <b>product</b>, <b>region</b>: the breakdowns and the heatmap</li>
+          <li><b>Quantity</b>, <b>customer</b>, <b>order ID</b>: used where they help</li>
+        </ul>
+        <p>Exports from Shopify, Square, Clover and QuickBooks work as they are; the column names don't need to match.
+          For Excel files, the first sheet is read.</p>
+        <a class="btn small" href="sample/money-snitch-template.csv" download>Download a template (CSV)</a>
+      </div>
+    </details>
     <p class="status" id="status" role="status"></p>
 
     <!-- step 2: confirm the columns -->
@@ -51,6 +67,8 @@
       <h2>Which column is which?</h2>
       <p class="sub">From <b id="map-file"></b>. These are my best guesses: check them, change any that are wrong, then build
         your dashboard. Only the order date and sales are required.</p>
+      <p class="map-summary" id="map-summary"></p>
+      <div class="map-head" aria-hidden="true"><span></span><span>Your column</span><span></span><span>Becomes</span></div>
       <div class="map-grid" id="map-rows"></div>
       <div class="map-opts">
         <label>Date format <select id="date-format"></select></label>
@@ -166,13 +184,13 @@
 <div class="tip" id="tip" role="tooltip" hidden></div>
 <footer class="wrap foot">Built by <a href="https://lekanlawal1.github.io/portfolio-site/">Lekan Lawal</a>. Runs on DuckDB-WASM and pdf.js; Excel files are read with SheetJS.</footer>
 <script src="vendor/xlsx.mini.min.js"></script>
-<script src="console/core.js?v=20261102"></script>
-<script src="console/charts.js?v=20261102"></script>
-<script src="console/app.js?v=20261102"></script>
-<script src="fees/statement.js?v=20261102"></script>
-<script src="fees/rates.js?v=20261102"></script>
-<script src="fees/generic.js?v=20261102"></script>
-<script src="fees/check.js?v=20261102"></script>
-<script src="fees/feeapp.js?v=20261102"></script>
+<script src="console/core.js?v=20261103"></script>
+<script src="console/charts.js?v=20261103"></script>
+<script src="console/app.js?v=20261103"></script>
+<script src="fees/statement.js?v=20261103"></script>
+<script src="fees/rates.js?v=20261103"></script>
+<script src="fees/generic.js?v=20261103"></script>
+<script src="fees/check.js?v=20261103"></script>
+<script src="fees/feeapp.js?v=20261103"></script>
 </body>
 </html>

@@ -104,19 +104,44 @@ $("sample").addEventListener("click", async () => {
 
 // ------------------------------------------------------------------ step 2: which column is which
 let mapping = {}, opts = {};
+// what each field is for, shown beside it while matching columns
+const ROLE_HINTS = {
+  date: "When each sale happened", sales: "Revenue for the line, before costs", profit: "Sales minus costs; unlocks margins",
+  cost: "What the line cost you; profit is worked out", discount: "A rate (0.2) or a dollar amount", quantity: "Units sold",
+  category: "A product group, for breakdowns", subcategory: "A finer product group", product: "Item name or SKU",
+  region: "Store, province or territory", customer: "Who bought it", order_id: "Groups lines into orders",
+};
 function showMapping(headers, sample) {
   mapping = C.guessMapping(headers, sample);
   const fmt = mapping.date ? C.detectDateFormat(sample.map((r) => r[mapping.date])).fmt : null;
   opts = { dateFormat: fmt || "%Y-%m-%d", discountKind: "rate", costKind: "total" };
   const option = (h, sel) => `<option value="${esc(h)}"${h === sel ? " selected" : ""}>${esc(h)}</option>`;
-  const example = (h) => { const v = sample.find((r) => r[h] != null && String(r[h]).trim() !== ""); return v ? String(v[h]).slice(0, 28) : ""; };
-  $("map-rows").innerHTML = C.ROLES.map((r) => `<label class="map-row">
-      <span><b>${esc(r.label)}</b>${r.required ? ` <em>required</em>` : ""}</span>
-      <select data-role="${r.key}"><option value="">${r.required ? "Choose a column" : "Not in my file"}</option>${headers.map((h) => option(h, mapping[r.key])).join("")}</select>
-      <small class="ex" data-ex="${r.key}">${mapping[r.key] ? esc(example(mapping[r.key])) : ""}</small></label>`).join("");
+  // up to three different values from the column, so it's easy to see whether the match is right
+  const example = (h) => {
+    const seen = [];
+    for (const r of sample) { const v = r[h] == null ? "" : String(r[h]).trim(); if (v && !seen.includes(v)) seen.push(v); if (seen.length === 3) break; }
+    return seen.length ? "e.g. " + seen.map((v) => v.slice(0, 22)).join(" · ") : "";
+  };
+  const autoMatched = C.ROLES.filter((r) => mapping[r.key]).length;
+  $("map-summary").textContent = `${autoMatched} of ${C.ROLES.length} matched automatically from your column names.`;
+  $("map-rows").innerHTML = C.ROLES.map((r) => `<div class="map-row" data-row="${r.key}">
+      <span class="map-state" aria-hidden="true"></span>
+      <span class="map-yours">
+        <select data-role="${r.key}" aria-label="Your column for ${esc(r.label)}"><option value="">${r.required ? "Choose a column" : "Not in my file"}</option>${headers.map((h) => option(h, mapping[r.key])).join("")}</select>
+        <small class="ex">${mapping[r.key] ? esc(example(mapping[r.key])) : ""}</small></span>
+      <span class="map-arrow" aria-hidden="true">&rarr;</span>
+      <span class="map-field"><b>${esc(r.label)}</b>${r.required ? "<em>required</em>" : "<em>optional</em>"}<small>${ROLE_HINTS[r.key] || ""}</small></span></div>`).join("");
+  // a tick when matched, a red mark when a required field is missing, an empty ring when an optional one is skipped
+  const mark = (row) => {
+    const role = C.ROLES.find((r) => r.key === row.dataset.row), on = !!mapping[role.key];
+    row.classList.toggle("ok", on); row.classList.toggle("missing", !on && !!role.required);
+    row.querySelector(".map-state").textContent = on ? "✓" : role.required ? "!" : "";
+  };
+  $("map-rows").querySelectorAll(".map-row").forEach(mark);
   $("map-rows").querySelectorAll("select").forEach((s) => s.addEventListener("change", () => {
     if (s.value) mapping[s.dataset.role] = s.value; else delete mapping[s.dataset.role];
     s.parentElement.querySelector(".ex").textContent = s.value ? example(s.value) : "";
+    mark(s.closest(".map-row"));
     if (s.dataset.role === "date" && s.value) {
       opts.dateFormat = C.detectDateFormat(sample.map((r) => r[s.value])).fmt || opts.dateFormat;
       $("date-format").value = opts.dateFormat;

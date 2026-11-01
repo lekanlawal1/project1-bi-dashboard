@@ -46,7 +46,10 @@ discounts, products and locations instead of margins, and says so.
 - **Messy files are handled and reported, not silently counted:** rows without a readable date or sales
   amount (totals, notes, other sheets pasted below the data) are skipped, exact duplicate lines removed, and
   the data check says how many of each.
-- **Columns are guessed, then confirmed by you.** Common export names are recognised (Shopify's "Lineitem
+- **A template and a clear list of what a file needs.** "What your file needs" sits under the drop zone: the two
+  required columns, what each optional column unlocks, and a CSV template (`sample/money-snitch-template.csv`).
+- **Columns are guessed, then confirmed by you.** Each field shows your column with up to three of its values, an arrow
+  to what it becomes, and a mark: matched, missing (required) or skipped (optional). Common export names are recognised (Shopify's "Lineitem
   price", "Billing Province"; point-of-sale "Net Sales", "Location"). Dates in day-first or month-first
   order are told apart from the values themselves. Costs can be per line or per unit, discounts a rate or a
   dollar amount.

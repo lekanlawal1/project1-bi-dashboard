@@ -1,0 +1,6 @@
+Order Date,Order ID,Customer,Product,Category,Sub-Category,Region,Quantity,Sales,Discount,Profit
+2026-01-05,1001,Ada Moore,Ceramic mug,Kitchen,Mugs,Ontario,2,36.00,0,14.40
+2026-01-05,1001,Ada Moore,Pour-over kettle,Kitchen,Kettles,Ontario,1,64.00,0.1,9.60
+2026-01-12,1002,Ben Okafor,Linen tea towel,Textiles,Towels,Quebec,3,42.00,0,16.80
+2026-02-03,1003,Chloe Singh,Oak serving board,Kitchen,Boards,British Columbia,1,89.00,0.25,-4.45
+2026-02-17,1004,Dev Patel,Ceramic mug,Kitchen,Mugs,Alberta,4,72.00,0.2,10.80
