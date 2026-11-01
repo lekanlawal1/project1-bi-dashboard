@@ -9,7 +9,7 @@
   const usd0 = (c) => `$${Math.round(Math.abs(c) / 100).toLocaleString("en-US")}`;
   const pct = (x, d = 2) => (x == null ? "n/a" : `${(x * 100).toFixed(d)}%`);
   const rate = (p, f) => `${p.toFixed(2)}%${f ? ` + $${f.toFixed(2)}` : ""}`;
-  const status = (msg, bad = false) => { $("fee-status").textContent = msg; $("fee-status").classList.toggle("bad", bad); };
+  const status = (msg, bad = false) => setStatus($("fee-status"), msg, bad);
   const monthName = (iso) => new Date(iso + "T00:00:00Z").toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
 
   // ------------------------------------------------------------------ tabs

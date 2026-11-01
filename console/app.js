@@ -6,7 +6,18 @@ const C = MarginCore;
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const DUCKDB = "https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.32.0/+esm";
-const status = (msg, bad = false) => { $("status").textContent = msg; $("status").classList.toggle("bad", bad); };
+// A status line. A message still in progress (ending "...") gets the bouncing-bars loader in front.
+function setStatus(el, msg, bad = false) {
+  const working = !bad && /\.\.\.$/.test(msg);
+  const bars = document.createElement("span");
+  bars.className = "loading-bars";
+  bars.setAttribute("aria-hidden", "true");
+  bars.innerHTML = "<i></i><i></i><i></i><i></i>";
+  el.replaceChildren(...(working ? [bars] : []), document.createTextNode(msg));
+  el.classList.toggle("bad", bad);
+  el.classList.toggle("working", working);
+}
+const status = (msg, bad = false) => setStatus($("status"), msg, bad);
 
 const money = (v, short) => {
   if (v == null || !Number.isFinite(v)) return "n/a";

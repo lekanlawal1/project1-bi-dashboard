@@ -47,6 +47,17 @@ h1 .hl::after { content: ""; position: absolute; left: -4px; right: -4px; bottom
 .drop span { font-size: 13.5px; color: var(--muted); }
 .status { min-height: 1.5em; margin: 12px 2px 0; font-size: 14px; color: var(--muted); }
 .status.bad { color: #c8102e; }
+/* Bouncing bars while something is loading: a little bar chart coming to life.
+   Adapted from a loader on Uiverse.io by satyamchaudharydev (MIT). */
+.status.working { display: flex; align-items: center; gap: 10px; color: var(--ink-2); font-weight: 600; }
+.loading-bars { display: inline-flex; align-items: flex-end; gap: 3px; height: 18px; flex: none; }
+.loading-bars i { width: 5px; height: 9px; background: var(--accent); border: 1.5px solid var(--edge); border-radius: 2px;
+  transform-origin: bottom; animation: loading-bars-grow 1s ease-in-out infinite; }
+.loading-bars i:nth-child(2) { animation-delay: .15s; background: var(--pos); }
+.loading-bars i:nth-child(3) { animation-delay: .3s; }
+.loading-bars i:nth-child(4) { animation-delay: .45s; background: var(--pos); }
+@keyframes loading-bars-grow { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(1.9); } }
+@media (prefers-reduced-motion: reduce) { .loading-bars i { animation-duration: 2.4s; } }
 
 .panel { margin: 22px 0; background: var(--card); border: 2.5px solid var(--edge); border-radius: 18px; padding: 18px 20px; box-shadow: 5px 5px 0 var(--edge); }
 .panel h2 { font: 800 1.5rem "Bricolage Grotesque", Inter, sans-serif; letter-spacing: -.02em; }
