@@ -6,18 +6,26 @@ const C = MarginCore;
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const DUCKDB = "https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.32.0/+esm";
-// A status line. A message still in progress (ending "...") gets the bouncing-bars loader in front.
-function setStatus(el, msg, bad = false) {
-  const working = !bad && /\.\.\.$/.test(msg);
-  const bars = document.createElement("span");
-  bars.className = "loading-bars";
-  bars.setAttribute("aria-hidden", "true");
-  bars.innerHTML = "<i></i><i></i><i></i><i></i>";
-  el.replaceChildren(...(working ? [bars] : []), document.createTextNode(msg));
+// A status line. A message still in progress (ending "...") gets the bouncing-bars loader in front;
+// a finished one (ok) gets a tick.
+function setStatus(el, msg, bad = false, ok = false) {
+  const working = !bad && !ok && /\.\.\.$/.test(msg);
+  const mark = document.createElement("span");
+  mark.setAttribute("aria-hidden", "true");
+  if (working) { mark.className = "loading-bars"; mark.innerHTML = "<i></i><i></i><i></i><i></i>"; }
+  else if (ok) { mark.className = "done-tick"; mark.textContent = "✓"; }
+  el.replaceChildren(...(working || ok ? [mark] : []), document.createTextNode(msg));
   el.classList.toggle("bad", bad);
   el.classList.toggle("working", working);
+  el.classList.toggle("ok", ok);
 }
-const status = (msg, bad = false) => setStatus($("status"), msg, bad);
+// grey placeholders in the dashboard's own layout while its first queries run, so nothing jumps
+function skeleton() {
+  const block = (cls) => `<div class="sk ${cls}"></div>`;
+  $("kpis").innerHTML = Array.from({ length: 5 }, () => `<div class="tile">${block("sk-line short")}${block("sk-line big")}${block("sk-line")}</div>`).join("");
+  document.querySelectorAll("#dash .grid .card").forEach((c) => { c.innerHTML = `${block("sk-line short")}${block("sk-line")}${block("sk-chart")}`; });
+}
+const status = (msg, bad = false, ok = false) => setStatus($("status"), msg, bad, ok);
 
 const money = (v, short) => {
   if (v == null || !Number.isFinite(v)) return "n/a";
@@ -151,8 +159,10 @@ async function build(isSample) {
     $("dash").hidden = false;
     $("check").innerHTML = dataCheck(qc, cleanSQL);
     setupRange();
-    status("");
+    skeleton();
+    status("Drawing the charts...");
     await render();
+    status(`Ready: ${qc.rows_used.toLocaleString("en-CA")} sales lines from ${fileName || "your file"}.`, false, true);
     $("dash").scrollIntoView({ behavior: "smooth", block: "start" });
     // the card-fee tab can compare its statement month with this file, if both are loaded
     window.MarginBridge = {

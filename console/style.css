@@ -57,6 +57,17 @@ h1 .hl::after { content: ""; position: absolute; left: -4px; right: -4px; bottom
 .loading-bars i:nth-child(3) { animation-delay: .3s; }
 .loading-bars i:nth-child(4) { animation-delay: .45s; background: var(--pos); }
 @keyframes loading-bars-grow { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(1.9); } }
+/* finished: a tick, then the message */
+.status.ok { display: flex; align-items: center; gap: 8px; color: var(--ink); font-weight: 600; }
+.done-tick { display: inline-grid; place-items: center; width: 18px; height: 18px; flex: none; border-radius: 50%; background: #1E7B45; color: #fff; font-size: 11px; font-weight: 800; }
+/* skeleton: the dashboard's layout in grey, shimmering, until the first charts arrive */
+.sk { border-radius: 6px; background: linear-gradient(90deg, var(--line) 0%, var(--cell) 50%, var(--line) 100%) 0 0 / 200% 100%; animation: sk-shimmer 1.3s ease-in-out infinite; }
+.sk-line { height: 12px; margin: 8px 0; }
+.sk-line.short { width: 45%; }
+.sk-line.big { height: 26px; width: 70%; }
+.sk-chart { height: 180px; margin-top: 14px; border-radius: 10px; }
+@keyframes sk-shimmer { to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .sk { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .loading-bars i { animation-duration: 2.4s; } }
 
 .panel { margin: 22px 0; background: var(--card); border: 2.5px solid var(--edge); border-radius: 18px; padding: 18px 20px; box-shadow: 5px 5px 0 var(--edge); }
