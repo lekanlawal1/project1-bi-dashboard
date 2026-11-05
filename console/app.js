@@ -298,7 +298,8 @@ function drawKPIs(k, r) {
   if (meta.hasProfit) tiles.push(["Profit", money(k.profit), delta(k.profit, k.prev_profit, "money")], ["Margin", pct(k.margin), delta(k.margin, k.prev_margin, "pp")]);
   tiles.push(["Orders", Math.round(k.orders).toLocaleString("en-CA"), delta(k.orders, k.prev_orders)]);
   if (meta.hasProfit) tiles.push(["Lines sold at a loss", pct(k.loss_share), ""]);
-  $("kpis").innerHTML = tiles.map(([l, v, d]) => `<div class="tile"><div class="l">${l}</div><div class="v">${v}</div><div class="dl">${d}${d ? ` <small>${vs}</small>` : ""}</div></div>`).join("");
+  // a loss shows red, so a negative profit or margin can't be missed
+  $("kpis").innerHTML = tiles.map(([l, v, d]) => `<div class="tile"><div class="l">${l}</div><div class="v${/^-/.test(v) ? " neg" : ""}">${v}</div><div class="dl">${d}${d ? ` <small>${vs}</small>` : ""}</div></div>`).join("");
 }
 // the evidence: one pinned sheet per finding, with its amount, a link to its chart and a note on
 // what to check next (both written by fixed rules in core.js, not AI text)
@@ -346,7 +347,7 @@ function drawHeatmap(rows, sql) {
   const P = meta.hasProfit;
   const regions = [...new Set(rows.map((r) => r.region))].sort(), cats = [...new Set(rows.map((r) => r.category))].sort();
   if (regions.length > 20) { $("c-heatmap").innerHTML = `<div class="card-head"><h3>Region by category</h3><p>Too many regions (${regions.length}) to show as a grid.</p></div>`; return; }
-  card("c-heatmap", "Region by category", P ? "Margin in each combination: red loses money, blue makes it, pale is near zero." : "Sales in each combination.", sql,
+  card("c-heatmap", "Region by category", P ? "Margin in each combination: red loses money, green makes it, pale is near zero." : "Sales in each combination.", sql,
     Charts.heatmap(rows.map((r) => ({ row: r.region, col: r.category, value: P ? r.margin : r.sales,
       tip: `<b>${esc(r.category)} in ${esc(r.region)}</b><br>Sales ${money(r.sales)}${P ? `<br>Profit ${money(r.profit)}, margin ${pct(r.margin)}` : ""}<br>Click to filter`,
       filter: { region: r.region, category: r.category } })), regions, cats, { fmt: P ? (v) => pct(v) : (v) => money(v, true), label: "Region by category", metric: P ? "margin" : "sales" }));

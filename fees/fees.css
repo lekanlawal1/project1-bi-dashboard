@@ -1,16 +1,16 @@
 /* Card fees tab and the two tabs. Builds on console/style.css. Who-gets-the-money colours:
    the two pass-through parts are quiet slates, the negotiable part is the project's amber. */
-:root { --c-bank: #5C6577; --c-net: #A9B0BD; --ok: #2E6B48; --bad: #B8322A; --info: #2E5E8C; }
+:root { --c-bank: #5C6577; --c-net: #A9B0BD; --ok: #237A45; --bad: #B8322A; --info: #2E5E8C; }
 @media (prefers-color-scheme: dark) {
   :root { --c-bank: #8E98AD; --c-net: #4F5767; --ok: #6FC08F; --bad: #E8705F; --info: #6FA3D6; }
 }
 
 /* tabs: two index cards inside the case folder */
 .tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 18px 0 2px; }
-.tabs [role="tab"] { text-align: left; font: inherit; color: var(--ink); background: color-mix(in oklab, var(--card) 45%, transparent); border: 0; border-radius: 4px;
+.tabs [role="tab"] { text-align: left; font: inherit; color: var(--ink); background: color-mix(in oklab, var(--card) 60%, transparent); border: 0; border-radius: 4px;
   border-top: 3px solid transparent; padding: 12px 16px; cursor: pointer; display: grid; gap: 2px; transition: background .15s, box-shadow .15s; }
 .tabs [role="tab"] b { font: 600 1.05rem var(--sans); }
-.tabs [role="tab"] span { font-size: 13px; color: var(--ink-2); }
+.tabs [role="tab"] span { font-size: 14px; color: var(--ink-2); }
 .tabs [role="tab"]:hover { background: color-mix(in oklab, var(--card) 75%, transparent); }
 .tabs [role="tab"][aria-selected="true"] { background: var(--card); border-top-color: var(--stamp); box-shadow: var(--shadow); }
 .tabs [role="tab"]:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
@@ -20,7 +20,7 @@
 #fee-dash { margin-top: 20px; }
 .fee-summary { background: var(--card); border-radius: 4px; padding: 18px 20px; box-shadow: var(--shadow); margin-bottom: 18px; border-top: 4px solid var(--manila); }
 .fee-summary p { margin: 6px 0; color: var(--ink-2); max-width: 62rem; }
-.fee-summary .kicker { font: 12.5px var(--type); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-top: 0; }
+.fee-summary .kicker { font: 600 12px var(--mono); letter-spacing: .05em; text-transform: uppercase; color: var(--ink-2); margin-top: 0; }
 .fee-summary .headline { font: 600 1.25rem/1.4 var(--sans); color: var(--ink); }
 .fee-summary b { color: var(--ink); }
 .verdict { font-size: 14px; padding: 9px 12px; border-radius: 4px; border-left: 3px solid var(--ink); }
@@ -39,7 +39,7 @@
 .split i:focus { outline: 3px solid var(--ink); outline-offset: -3px; }
 .legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px 18px; margin-top: 12px; }
 .legend > div { display: grid; grid-template-columns: 14px 1fr auto; gap: 0 8px; align-items: baseline; font-size: 14px; }
-.legend small { grid-column: 2 / -1; color: var(--muted); font-size: 12.5px; }
+.legend small { grid-column: 2 / -1; color: var(--ink-2); font-size: 13.5px; }
 .legend .amt { font: 600 14px var(--mono); font-variant-numeric: tabular-nums; }
 .sw { display: inline-block; width: 12px; height: 12px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
 .legend .sw { margin: 0; }
@@ -47,7 +47,7 @@
 /* findings: numbered exhibits, each with a pinned note on what to ask */
 .flist { list-style: none; padding: 0; display: grid; gap: 12px; counter-reset: f; }
 .flist li { counter-increment: f; position: relative; background: var(--soft); border-radius: 4px; border-left: 4px solid var(--c-net); padding: 12px 14px 10px; }
-.flist li::before { content: "Count " counter(f); display: block; font: 12px var(--type); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.flist li::before { content: "Count " counter(f); display: block; font: 600 12px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--stamp); margin-bottom: 2px; }
 .flist li.k-overcharge, .flist li.k-downgrade { border-left-color: var(--neg); }
 .flist li.k-markup, .flist li.k-fixed { border-left-color: var(--accent); }
 .flist li.k-habit { border-left-color: var(--pos); }
@@ -55,15 +55,15 @@
 .flist .ft b { font-size: 15px; }
 .flist .amt { font: 600 1.05rem var(--mono); white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--neg); }
 .flist .amt small { font: 500 12px var(--sans); color: var(--muted); }
-.flist p { font-size: 14px; color: var(--ink-2); margin-top: 3px; }
+.flist p { font-size: 15px; color: var(--ink); margin-top: 3px; }
 .flist .pnote p { color: var(--note-ink); }
 
 /* checks */
 .checks { list-style: none; padding: 0; display: grid; gap: 6px; }
-.checks li { display: grid; grid-template-columns: 24px 1fr; gap: 8px; font-size: 13.5px; }
+.checks li { display: grid; grid-template-columns: 24px 1fr; gap: 8px; font-size: 14.5px; }
 .checks .mark { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; color: var(--card); font-size: 13px; }
 .checks .ok .mark { background: var(--ok); } .checks .bad .mark { background: var(--bad); }
-.checks small { display: block; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.checks small { display: block; color: var(--ink-2); font-size: 13px; overflow-wrap: anywhere; }
 .checks .bad b { color: var(--bad); }
 .fine { font-size: 12px; color: var(--muted); margin-top: 8px; }
 .fine a { font-weight: 500; }
