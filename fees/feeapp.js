@@ -117,6 +117,18 @@
   const COLORS = { interchange: "var(--c-bank)", network: "var(--c-net)", processor: "var(--accent)", unknown: "var(--axis)" };
   const LABEL = { interchange: "Card-issuing banks (interchange)", network: "Card networks (Visa, Mastercard, Amex, Discover)", processor: "Your processor", unknown: "Couldn't place" };
 
+  // a pinned note per kind of finding: what to do or ask about it. General advice, not a promise
+  // of a refund; the finding itself carries the numbers.
+  function askNote(f) {
+    if (f.kind === "overcharge") return "Send your processor this line with the published rate beside it, and ask them to explain the difference or refund it.";
+    if (f.kind === "downgrade") return "Ask why this sale didn't qualify for the usual rate. Missing details at checkout, such as the billing address or tax amount, are a common cause.";
+    if (f.kind === "markup") return "This is the negotiable part. Get a quote from another processor for the same sales, then ask your processor to match it.";
+    if (f.kind === "fixed") return "Ask which of these can be removed. A PCI non-compliance fee usually stops once you complete the yearly security questionnaire.";
+    if (f.kind === "habit") return /keyed|online/i.test(f.title) ? "Where you can, take the card in person (tap or chip) rather than typing the number in."
+      : "Check your terminal and online checkout settings: each card check is billed, even when no sale follows.";
+    return "";
+  }
+
   function draw() {
     const a = analysis; if (!a) return;
     const st = a.st, b = a.buckets;
@@ -154,8 +166,8 @@
         <span class="amt">${usd(b[k])}</span><small>${share(b[k])} of sales · ${k === "processor" ? "negotiable" : k === "unknown" ? "not sorted" : "same at any processor"}</small></div>`).join("")}</div>`);
 
     // findings, biggest first
-    card("f-findings", "Worth asking about", a.findings.length ? "Biggest first. Each one is a fixed rule over the statement's numbers, not AI text." : "",
-      a.findings.length ? `<ol class="flist">${a.findings.map((f) => `<li class="k-${f.kind}"><div class="ft"><b>${esc(f.title)}</b>${f.amount >= 100 ? `<span class="amt">${usd0(f.amount)}<small>/month</small></span>` : f.amount > 0 ? `<span class="amt">${usd(Math.round(f.amount))}</span>` : ""}</div><p>${esc(f.text)}</p></li>`).join("")}</ol>`
+    card("f-findings", "The evidence: worth asking about", a.findings.length ? "Biggest first. Each one is a fixed rule over the statement's numbers, not AI text." : "",
+      a.findings.length ? `<ol class="flist">${a.findings.map((f) => `<li class="k-${f.kind}"><div class="ft"><b>${esc(f.title)}</b>${f.amount >= 100 ? `<span class="amt">${usd0(f.amount)}<small>/month</small></span>` : f.amount > 0 ? `<span class="amt">${usd(Math.round(f.amount))}</span>` : ""}</div><p>${esc(f.text)}</p>${askNote(f) ? `<details class="pnote"><summary>What to do about it</summary><p>${esc(askNote(f))}</p></details>` : ""}</li>`).join("")}</ol>`
         : `<p class="empty">Nothing stood out: every line matched its published rate and nothing looked unusual.</p>`);
 
     // the checks

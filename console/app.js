@@ -203,7 +203,7 @@ function dataCheck(q, sql) {
   if (q.rows_unusable) parts.push(`${q.rows_unusable.toLocaleString("en-CA")} row${q.rows_unusable > 1 ? "s" : ""} skipped: no readable date or sales amount (often totals, notes or other sheets pasted below the data).`);
   if (q.duplicates) parts.push(`${q.duplicates.toLocaleString("en-CA")} exact duplicate line${q.duplicates > 1 ? "s" : ""} removed.`);
   if (!q.rows_with_profit) parts.push("No profit or cost column, so the dashboard shows sales instead of margins.");
-  return `<p>${parts.join(" ")}</p><details class="sql"><summary>Show the cleaning SQL</summary><pre>${esc(sql)}</pre></details>
+  return `<span class="lbl">Case file · ${esc(fileName)}</span><p>${parts.join(" ")}</p><details class="sql"><summary>Show the cleaning SQL</summary><pre>${esc(sql)}</pre></details>
     <button type="button" class="link" id="remap">Change the column choices</button>`;
 }
 
@@ -300,9 +300,19 @@ function drawKPIs(k, r) {
   if (meta.hasProfit) tiles.push(["Lines sold at a loss", pct(k.loss_share), ""]);
   $("kpis").innerHTML = tiles.map(([l, v, d]) => `<div class="tile"><div class="l">${l}</div><div class="v">${v}</div><div class="dl">${d}${d ? ` <small>${vs}</small>` : ""}</div></div>`).join("");
 }
+// the evidence: one pinned sheet per finding, with its amount, a link to its chart and a note on
+// what to check next (both written by fixed rules in core.js, not AI text)
 function drawFindings(list) {
-  $("findings").innerHTML = list.length ? `<h3>What stands out</h3><ul>${list.map((f) => `<li><a href="#c-${f.chart}">${esc(f.text)}</a></li>`).join("")}</ul>
-    <p class="fine">Each sentence is a fixed rule over the numbers below, not AI text.</p>` : "";
+  const overlap = list.filter((f) => f.amount < 0).length;
+  $("findings").innerHTML = list.length ? `<div class="ev-head"><h3>The evidence</h3><span class="stamp">${list.length} finding${list.length > 1 ? "s" : ""}</span></div>
+    <div class="evidence">${list.map((f, i) => `<article class="ev">
+      <span class="lbl">Evidence ${i + 1}${f.tag ? ` · ${esc(f.tag)}` : ""}</span>
+      ${Number.isFinite(f.amount) && f.amount < 0 ? `<div class="amt">${money(f.amount)}</div>` : ""}
+      <p>${esc(f.text)}</p>
+      ${f.chart !== "kpi" ? `<a class="see" href="#c-${f.chart}">See the chart &darr;</a>` : ""}
+      ${f.note ? `<details class="pnote"><summary>What to check next</summary><p>${esc(f.note)}</p></details>` : ""}
+    </article>`).join("")}</div>
+    <p class="fine">Every sentence and note is a fixed rule over the numbers below, not AI text.${overlap > 1 ? " The amounts overlap: a discounted product that lost money counts in more than one." : ""}</p>` : "";
 }
 // the inner width of a full-width card, so charts are drawn at real size (measured on the
 // dashboard itself: an empty card is hidden and has no width yet)
@@ -350,7 +360,7 @@ function drawPareto(rows, sql) {
     Charts.pareto(rows, { label: "Running share of profit by product", money: (v) => money(v), width: widthOf("c-pareto") }));
 }
 function drawLosers(rows, sql) {
-  card("c-losers", "Products that lose money", rows.length ? "The 25 biggest losses in this selection. Click a product to filter every chart to it." : "No product loses money in this selection.", sql,
+  card("c-losers", "The suspects: products that lose money", rows.length ? "The 25 biggest losses in this selection. Click a product to filter every chart to it." : "No suspects: no product loses money in this selection.", sql,
     rows.length ? `<div class="tablewrap"><table class="data"><thead><tr><th>Product</th><th>Category</th><th class="n">Lines</th><th class="n">Sales</th><th class="n">Profit</th><th class="n">Margin</th><th class="n">Avg discount</th></tr></thead><tbody>${rows.map((r) => `
       <tr tabindex="0" data-filter="${esc(JSON.stringify({ product: r.product }))}" data-tip="${encodeURIComponent(`<b>${esc(r.product)}</b><br>Click to filter every chart to this product`)}"><td>${esc(r.product)}</td><td>${esc(r.category)}</td><td class="n">${r.lines}</td><td class="n">${money(r.sales)}</td><td class="n neg">${money(r.profit)}</td><td class="n">${pct(r.margin)}</td><td class="n">${r.avg_discount == null ? "n/a" : pct(r.avg_discount)}</td></tr>`).join("")}</tbody></table></div>` : "");
 }

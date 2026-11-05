@@ -31,7 +31,9 @@ you get:
 - **Where the profit comes from:** products ranked by profit with the running share of the total. Typically a
   small share of products makes most of the profit and a tail gives some back.
 - **Products that lose money,** the 25 biggest.
-- **What stands out:** plain-English findings, each a fixed rule over the numbers, not AI text.
+- **The evidence:** plain-English findings with the money attached, each a fixed rule over the numbers, not AI
+  text. Each has a pinned note on what to check next (for example, the deepest discount level that still made
+  money), also written by rule from the same numbers.
 
 Click any bar, heatmap cell, month or product and every chart filters to it. Under each chart, "Show the
 SQL" shows the exact query it ran.

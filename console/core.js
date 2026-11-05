@@ -269,7 +269,9 @@ SELECT * FROM read_csv(${lit(file)}, all_varchar = true, header = true, null_pad
     }
     if (kpi && kpi.prev_margin != null && kpi.margin != null && Math.abs(kpi.margin - kpi.prev_margin) >= 0.02) {
       const up = kpi.sales > kpi.prev_sales;
-      out.push({ chart: "kpi", text: `Margin ${kpi.margin < kpi.prev_margin ? "fell" : "rose"} from ${pct(kpi.prev_margin)} to ${pct(kpi.margin)} compared with the previous period${up && kpi.margin < kpi.prev_margin ? ", even though sales grew" : ""}.` });
+      const fell = kpi.margin < kpi.prev_margin;
+      out.push({ chart: "kpi", tag: "margin", text: `Margin ${fell ? "fell" : "rose"} from ${pct(kpi.prev_margin)} to ${pct(kpi.margin)} compared with the previous period${up && fell ? ", even though sales grew" : ""}.`,
+        note: fell ? "Set the date range to the previous period and back, and watch which bars in the discount cliff and the sub-category chart change most." : "" });
     }
     const losingBands = BANDS.filter((b) => b.key !== "none").map((b) => (discount || []).find((d) => d.band === b.key))
       .filter((d) => d && d.profit < 0);
@@ -277,23 +279,30 @@ SELECT * FROM read_csv(${lit(file)}, all_varchar = true, header = true, null_pad
       const loss = losingBands.reduce((a, b) => a + b.profit, 0), lines = losingBands.reduce((a, b) => a + b.lines, 0);
       const names = losingBands.map((d) => BANDS.find((b) => b.key === d.band).label.toLowerCase());
       const list = names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}` : names[0];
-      out.push({ chart: "discount", text: `Discounts of ${list} lost ${money(-loss)} across ${lines.toLocaleString("en-CA")} lines.` });
+      // the deepest band that still made money: where a cap would sit
+      const safe = BANDS.filter((b) => b.key !== "none").map((b) => (discount || []).find((d) => d.band === b.key)).filter((d) => d && d.profit >= 0).pop();
+      out.push({ chart: "discount", tag: "discounts", amount: loss, text: `Discounts of ${list} lost ${money(-loss)} across ${lines.toLocaleString("en-CA")} lines.`,
+        note: `${safe ? `The deepest discount that still made money was ${BANDS.find((b) => b.key === safe.band).label.toLowerCase()}. ` : ""}Click a red bar in the discount cliff to see which products sold that deep, then decide whether a cap would keep those sales.` });
     }
     const losingCats = (category || []).filter((c) => c.profit < 0);
     if (losingCats.length) {
       const c = losingCats[0];
-      out.push({ chart: "category", text: `${c.name} lost ${money(-c.profit)} on ${money(c.sales)} of sales${c.avg_discount != null ? `, with an average discount of ${pct(c.avg_discount)}` : ""}.` });
+      out.push({ chart: "category", tag: c.name, amount: c.profit, text: `${c.name} lost ${money(-c.profit)} on ${money(c.sales)} of sales${c.avg_discount != null ? `, with an average discount of ${pct(c.avg_discount)}` : ""}.`,
+        note: `Click ${c.name} in the chart to filter every chart to it. If its losses sit in the discount bands, it's pricing; if they show at no discount too, it's cost.` });
     }
     if (pareto?.length) {
       const total = pareto[0].positive_total;
       const k = pareto.findIndex((p) => p.running >= 0.8 * total) + 1;
       const n = pareto[0].products;
       const losing = pareto.filter((p) => p.profit < 0);
-      if (k > 0 && n >= 10) out.push({ chart: "pareto", text: `${k.toLocaleString("en-CA")} of ${n.toLocaleString("en-CA")} products (${pct(k / n)}) make 80% of the profit. ${losing.length.toLocaleString("en-CA")} products lose money in total, ${money(-losing.reduce((a, p) => a + p.profit, 0))} between them.` });
+      const lost = losing.reduce((a, p) => a + p.profit, 0);
+      if (k > 0 && n >= 10) out.push({ chart: "pareto", tag: "products", amount: lost, text: `${k.toLocaleString("en-CA")} of ${n.toLocaleString("en-CA")} products (${pct(k / n)}) make 80% of the profit. ${losing.length.toLocaleString("en-CA")} products lose money in total, ${money(-lost)} between them.`,
+        note: losing.length ? `Start with the suspects table at the bottom: the 25 biggest of the ${losing.length.toLocaleString("en-CA")} losing products. Protect the ${k.toLocaleString("en-CA")} that make most of the profit before cutting anything.` : "" });
     }
     if (losers?.length) {
       const l = losers[0];
-      out.push({ chart: "losers", text: `The biggest single loss: ${l.product} lost ${money(-l.profit)} on ${money(l.sales)} of sales.` });
+      out.push({ chart: "losers", tag: "one product", amount: l.profit, text: `The biggest single loss: ${l.product} lost ${money(-l.profit)} on ${money(l.sales)} of sales.`,
+        note: `${l.avg_discount != null ? `It sold at an average discount of ${pct(l.avg_discount)}. ` : ""}Check its price against its cost before you reorder it.` });
     }
     return out;
   }

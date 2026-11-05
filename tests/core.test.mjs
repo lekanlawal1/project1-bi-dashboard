@@ -61,6 +61,11 @@ test("findings are plain sentences from the numbers", () => {
   assert.match(text, /Cookware lost \$40/);
   assert.match(text, /make 80% of the profit/);
   assert.match(text, /Cast iron pan lost \$40/);
+  // every finding with money attached carries the amount, and a note on what to check next
+  const disc = f.find((x) => x.chart === "discount");
+  assert.equal(disc.amount, -50);
+  assert.match(disc.note, /deepest discount that still made money was no discount|Click a red bar/);
+  assert.ok(f.filter((x) => x.chart !== "kpi").every((x) => x.note && Number.isFinite(x.amount)));
 });
 
 test("no profit column: one honest sentence instead of margin findings", () => {
