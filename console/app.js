@@ -2,6 +2,10 @@
    SQL in core.js for every chart and draw it with charts.js. Clicking a mark filters every chart;
    each chart shows the exact query it ran. Nothing is uploaded anywhere. */
 
+// drawn icons instead of text symbols
+const CHECK = '<svg class="ic" viewBox="0 0 12 12" width="10" height="10" aria-hidden="true"><path d="M2.2 6.4l2.4 2.4 5.2-5.4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const CROSS = '<svg class="ic" viewBox="0 0 12 12" width="10" height="10" aria-hidden="true"><path d="M3.2 3.2l5.6 5.6M8.8 3.2L3.2 8.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+
 const C = MarginCore;
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -13,7 +17,7 @@ function setStatus(el, msg, bad = false, ok = false) {
   const mark = document.createElement("span");
   mark.setAttribute("aria-hidden", "true");
   if (working) { mark.className = "loading-bars"; mark.innerHTML = "<i></i><i></i><i></i><i></i>"; }
-  else if (ok) { mark.className = "done-tick"; mark.textContent = "✓"; }
+  else if (ok) { mark.className = "done-tick"; mark.innerHTML = CHECK; }
   el.replaceChildren(...(working || ok ? [mark] : []), document.createTextNode(msg));
   el.classList.toggle("bad", bad);
   el.classList.toggle("working", working);
@@ -135,7 +139,7 @@ function showMapping(headers, sample) {
   const mark = (row) => {
     const role = C.ROLES.find((r) => r.key === row.dataset.row), on = !!mapping[role.key];
     row.classList.toggle("ok", on); row.classList.toggle("missing", !on && !!role.required);
-    row.querySelector(".map-state").textContent = on ? "✓" : role.required ? "!" : "";
+    row.querySelector(".map-state").innerHTML = on ? CHECK : role.required ? "!" : "";
   };
   $("map-rows").querySelectorAll(".map-row").forEach(mark);
   $("map-rows").querySelectorAll("select").forEach((s) => s.addEventListener("change", () => {

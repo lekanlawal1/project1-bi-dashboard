@@ -2,6 +2,10 @@
    statement.js read and what check.js found. Also runs the two tabs, the quick check and the
    comparison with the margins tab when both have a file. Nothing is uploaded anywhere. */
 
+// drawn icons instead of text symbols
+const FEE_CHECK = '<svg class="ic" viewBox="0 0 12 12" width="10" height="10" aria-hidden="true"><path d="M2.2 6.4l2.4 2.4 5.2-5.4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const FEE_CROSS = '<svg class="ic" viewBox="0 0 12 12" width="10" height="10" aria-hidden="true"><path d="M3.2 3.2l5.6 5.6M8.8 3.2L3.2 8.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+
 (() => {
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -172,7 +176,7 @@
 
     // the checks
     card("f-checks", "Does it add up?", `${okChecks} of ${a.checks.length} checks passed. If the statement's own totals don't add up, no results are shown at all.`,
-      `<ul class="checks">${a.checks.map((c) => `<li class="${c.ok ? "ok" : "bad"}"><span class="mark" aria-label="${c.ok ? "passed" : "failed"}">${c.ok ? "✓" : "✗"}</span><div><b>${esc(c.label)}</b><small>${esc(c.detail)}</small></div></li>`).join("")}</ul>`);
+      `<ul class="checks">${a.checks.map((c) => `<li class="${c.ok ? "ok" : "bad"}"><span class="mark" aria-label="${c.ok ? "passed" : "failed"}">${c.ok ? FEE_CHECK : FEE_CROSS}</span><div><b>${esc(c.label)}</b><small>${esc(c.detail)}</small></div></li>`).join("")}</ul>`);
 
     // by card brand
     const brands = a.byBrand.filter((x) => x.sales > 0).sort((p, q) => q.rate - p.rate);
@@ -229,7 +233,7 @@
     card("f-lines", "Every fee on the statement", `All ${a.lines.length} lines, biggest first. "Statement label" is how the statement files it; "Who gets it" is this checker's reading. Hover a line for the reason.`,
       `<div class="chipbar">${kinds.map((k) => `<button type="button" class="chip${lineFilter === k ? " on" : ""}" data-lf="${k}">${name[k]} <span>${usd(total(k))}</span></button>`).join("")}</div>
       <div class="tablewrap"><table class="data fees-t"><thead><tr><th>Description</th><th>Statement label</th><th>Who gets it</th><th class="n">Amount</th></tr></thead><tbody>
-      ${rows.map((l) => `<tr tabindex="0" data-tip="${encodeURIComponent(`<b>${esc(l.description)}</b><br>${esc(l.why)}${l.math ? `<br>Recalculated: ${usd(l.mathExpected)}${l.mathOk ? " ✓" : " ✗ doesn't match"}` : ""}`)}">
+      ${rows.map((l) => `<tr tabindex="0" data-tip="${encodeURIComponent(`<b>${esc(l.description)}</b><br>${esc(l.why)}${l.math ? `<br>Recalculated: ${usd(l.mathExpected)}${l.mathOk ? " (matches)" : " (doesn't match)"}` : ""}`)}">
         <td>${esc(l.description)}${l.mathOk === false ? ` <span class="badge bad">doesn't add up</span>` : ""}</td><td>${esc(l.type)}</td>
         <td><span class="sw" style="background:${COLORS[l.cls]}"></span>${esc(name[l.cls] === "Interchange" ? "Card-issuing bank" : name[l.cls])}</td><td class="n">${usd(-l.amount)}</td></tr>`).join("")}
       </tbody></table></div>`);
